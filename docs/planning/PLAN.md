@@ -1,8 +1,8 @@
 # UCOA Website Implementation Plan
 
-**Status:** planning and requirements
+**Status:** implementation in progress
 
-**Last reviewed:** August 29, 2026
+**Last reviewed:** August 30, 2026
 
 **Product owner:** UCOA executive responsible for construction and operational approval
 
@@ -265,11 +265,15 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 
 **Exit check:** a clean starter runs locally with no real credentials committed.
 
+**Progress:** The official `with-supabase` starter, Auth routes, SSR clients, lint, typecheck, test, and build commands are present. Local environment configuration, Auth redirects, and generated database types remain.
+
 ### Phase 3 - Schema and authorization
 
 - Write migrations for the core entities, indexes, grants, RLS policies, Storage policies, and audit helpers.
 - Generate typed database definitions.
 - Add pgTAP tests for each exposed table and role scenario.
+
+**Progress:** The membership, event authorization, private Storage, RSVP, attendance, recurring-generation, per-instance editing, and event-status workflow migrations and pgTAP suites cover date-bounded membership states, executive-only metadata, trusted roles, public-safe event columns, private event details, bounded series, host-scoped organizer access, path-scoped profile/event media, audit records, grants, RLS, transactional capacity/waitlist behavior, concurrent final-slot protection, manager-scoped attendee rosters, audited attendance transitions, idempotent daily/weekly/monthly instance generation, local-time and DST preservation, max-instance bounds, safe template copying, manager-scoped atomic instance edits, local-time input conversion, immutable series links, host/executive publishing and moderation, direct status-update denial, valid status transitions, and registration closure when events are cancelled. The Storage migration now leaves Supabase-managed table ownership and grants intact, compares managed text owner IDs correctly, and preserves owner immutability through RLS. Local migration and pgTAP execution passes with 360 assertions across nine suites. Generated database types, signed URL application code, upload validation, and broader workflow/UI scenarios remain.
 
 **Exit check:** local migrations and RLS tests pass, including anonymous, pending, active-member, organizer, and executive cases.
 
@@ -283,12 +287,29 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 
 ### Phase 5 - Events and participation
 
+**Progress:** Event and series authorization schema is complete, and server-rendered public event calendar and detail routes are available at `/events` and `/events/[id]` with a discoverable homepage entry point. Detail pages return public summaries to visitors, keep member-only fields behind the existing RLS policy, and use a non-disclosing not-found response for malformed or unauthorized IDs. Authenticated event details now include claims-validated RSVP and cancellation controls backed by the transactional RPCs, with confirmed, waitlisted, cancelled, closed, waiver-blocked, and inactive-membership states. The RSVP/waitlist transaction slice received its review fixes on August 30, 2026: generic non-disclosing cancellation errors, privilege-aligned direct-DML assertions, member-scoped read expectations, organizer RLS coverage for capacity changes, a documented fail-closed interim waiver decision, and a two-session dblink concurrent final-slot test. Attendance recording is now available through a manager-authorized, audited database RPC and protected organizer route with a safe first-name/last-initial roster. Bounded recurring generation is available for daily, weekly, and monthly series: it locks the series, requires owner or executive authorization, preserves local time and duration across timezone changes, copies approved template details and hosts, respects `max_instances`, and is idempotent by series and start timestamp. Per-instance editing is now available at `/protected/events/[id]/edit` through a claims-validated manager page and server action backed by an atomic database RPC; it updates public and member-only fields with local-time conversion while preserving publication status, creator, and series links. Organizer publishing and executive moderation are now available through the same protected workspace and the `set_event_status` RPC: only hosted active organizers or executives can publish, cancel, or complete valid events, direct status updates are denied, and cancellation closes active registration queue entries. The full local database run now passes (360 assertions across nine suites). The approved waiver acknowledgement workflow and application workflow scenarios remain.
+
 - Build calendar/list filters and public/member event detail views.
 - Build bounded recurring series and concrete event instances.
+- Build per-instance editing for recurring events.
 - Build organizer publishing and executive moderation.
 - Build transactional RSVP, waitlist, cancellation, promotion, waiver status, and attendance.
 
 **Exit check:** the last-slot race, waitlist promotion, cancellation, event cancellation, and organizer scope tests pass.
+
+### RSVP handoff - August 29, 2026 (resolved August 30, 2026)
+
+The RSVP review fixes in [supabase/migrations/20260829030000_event_registrations.sql](../../supabase/migrations/20260829030000_event_registrations.sql) and [supabase/tests/004_event_registrations.sql](../../supabase/tests/004_event_registrations.sql) were applied on August 30, 2026:
+
+- `cancel_event_registration` now raises the identical generic `event registration unavailable` error for unknown event IDs and for accessible-looking IDs where the caller has no registration, so the RPC no longer discloses draft or private event existence. Test 004 asserts the exact same errcode and message for an unknown ID and an existing hidden draft event.
+- The direct registration `UPDATE` and `DELETE` assertions now expect the privilege-layer `42501` denial that matches the select-only grant, and still prove the target rows are unchanged afterward.
+- The member-scoped read assertion after the denied delete now expects exactly one row: the member's own registration.
+- The `authenticated` role is restored before the capacity-increase checks so organizer RLS is exercised, and the post-cancellation waitlist reads run as the hosting organizer instead of relying on `postgres`.
+- A two-session concurrent final-slot race test was added in [supabase/tests/005_event_registration_concurrency.sql](../../supabase/tests/005_event_registration_concurrency.sql) using `dblink`: session A confirms the last place inside an open transaction, session B provably blocks on the event lock, then finishes waitlisted at position one with safe audit records. It uses committed fixtures with idempotent cleanup and only the fixed local-development database credentials.
+- The Storage migration was made compatible with Supabase's managed `storage` schema by removing table-level ownership operations, casting managed text `owner_id` values correctly, and enforcing unchanged ownership through RLS rather than a custom trigger.
+- Waiver acknowledgement interim decision: waiver-required events continue to fail closed and reject registration until the executive approves the waiver wording and signing workflow (section 13). This is the recorded interim design, not a defect; the approved acknowledgement workflow remains Phase 5 work.
+
+Runtime validation: `npx --yes supabase db reset --local --yes` applies all eight migrations and the seed, and `npm test` passes all nine pgTAP suites (360 assertions) as of August 30, 2026. `npm run lint`, `npm run typecheck`, and `npm run build` also pass. The local stack remains available at the configured local ports while Docker Desktop is running.
 
 ### Phase 6 - Migration and pilot
 

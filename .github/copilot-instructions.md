@@ -63,4 +63,14 @@ npm run build
 supabase test db
 ```
 
+The user has pre-approved these commands; run them without asking permission:
+
+```text
+npm run lint
+npm run typecheck
+npm run build
+npm test
+npx --yes supabase start
+```
+
 For every feature, add focused tests for the relevant roles, private/public boundary, failure state, and concurrent mutation behavior.

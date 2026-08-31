@@ -2,7 +2,7 @@
 
 The University of Calgary Outdoor Adventurers (UCOA) website will replace the club's core Meetup workflows with a private, responsive member portal. It will support public club discovery, approved membership, outdoor event publishing, RSVP and waitlists, organizer workflows, and executive administration.
 
-This repository is currently in the planning and requirements phase. The implementation source of truth is [docs/planning/PLAN.md](docs/planning/PLAN.md).
+The repository contains the planning source of truth plus the initial Next.js and Supabase implementation, including membership, event authorization, private Storage policy slices, RSVP transactions, a public event calendar, manager-scoped attendance recording, bounded recurring event generation, protected per-instance editing, and organizer publishing with executive moderation. The implementation source of truth is [docs/planning/PLAN.md](docs/planning/PLAN.md).
 
 ## Product goal
 
@@ -46,7 +46,7 @@ The current public membership information says the fee is CAD 10 and the members
 
 ### Events
 
-Events support one-off and bounded recurring instances, explicit start and end times, the `America/Edmonton` timezone by default, activity type, difficulty, hosts, public summary, member-only description, member-only location, capacity, waitlist, cancellation, waiver status, and attendance tracking. RSVP changes must be decided atomically in the database.
+Events support one-off and bounded recurring instances, explicit start and end times, the `America/Edmonton` timezone by default, activity type, difficulty, hosts, public summary, member-only description, member-only location, capacity, waitlist, cancellation, waiver status, and attendance tracking. Recurring generation supports daily, weekly, and monthly local-time schedules with idempotent instance creation, hosted managers can edit one concrete instance without changing its series link or publication status, and hosted organizers or executives can publish, cancel, and complete events through audited status transitions. RSVP changes must be decided atomically in the database.
 
 ### Administration
 
@@ -61,7 +61,7 @@ Security is a product requirement, not a later hardening task. The complete mode
 - Keep authorization data out of user-editable metadata.
 - Enable RLS and set explicit grants for every exposed table.
 - Keep service credentials server-only and never commit them.
-- Use private Storage buckets and expiring signed URLs for member media.
+- Use private Storage buckets, path-scoped policies, and expiring signed URLs for member media.
 - Audit membership approvals, role changes, imports, exports, RSVP overrides, and destructive actions.
 - Do not copy private Meetup content or member media without authorization.
 
