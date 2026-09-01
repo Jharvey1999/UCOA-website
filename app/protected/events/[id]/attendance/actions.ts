@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  initialEventAttendanceActionState,
+  initialEventWaiverEvidenceActionState,
+} from "./action-state";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 
@@ -14,11 +18,11 @@ export type EventAttendanceActionState = {
   attendanceStatus: EventAttendanceStatus | null;
 };
 
-export const initialEventAttendanceActionState: EventAttendanceActionState = {
-  result: "idle",
-  message: "",
-  registrationId: null,
-  attendanceStatus: null,
+export type EventWaiverEvidenceActionState = {
+  result: "idle" | "success" | "error";
+  message: string;
+  registrationId: string | null;
+  version: string | null;
 };
 
 const uuidPattern =
@@ -30,6 +34,38 @@ function errorState(message: string): EventAttendanceActionState {
     result: "error",
     message,
   };
+}
+
+function evidenceErrorState(message: string): EventWaiverEvidenceActionState {
+  return {
+    ...initialEventWaiverEvidenceActionState,
+    result: "error",
+    message,
+  };
+}
+
+function mapWaiverEvidenceError(message: string) {
+  if (message.includes("not organizer-recorded")) {
+    return "This event is not using an organizer-recorded waiver workflow.";
+  }
+
+  if (message.includes("approved waiver unavailable")) {
+    return "The approved waiver is not available for this event.";
+  }
+
+  if (message.includes("waiver evidence unavailable")) {
+    return "Waiver evidence is unavailable for this registration.";
+  }
+
+  if (message.includes("event waiver unavailable")) {
+    return "Waiver evidence is unavailable for this event.";
+  }
+
+  if (message.includes("waiver evidence reference is invalid")) {
+    return "Enter a valid waiver evidence reference.";
+  }
+
+  return "We could not record waiver evidence. Please try again.";
 }
 
 export async function recordEventAttendance(
@@ -105,5 +141,68 @@ export async function recordEventAttendance(
         : "Attendance marked as no show.",
     registrationId,
     attendanceStatus: result.registration_status,
+  };
+}
+
+export async function recordEventWaiverEvidence(
+  _previousState: EventWaiverEvidenceActionState,
+  formData: FormData,
+): Promise<EventWaiverEvidenceActionState> {
+  const eventId = formData.get("eventId");
+  const registrationId = formData.get("registrationId");
+  const evidenceReference = formData.get("evidenceReference");
+
+  if (
+    typeof eventId !== "string" ||
+    !uuidPattern.test(eventId) ||
+    typeof registrationId !== "string" ||
+    !uuidPattern.test(registrationId) ||
+    typeof evidenceReference !== "string" ||
+    evidenceReference.trim().length < 1 ||
+    evidenceReference.trim().length > 600
+  ) {
+    return evidenceErrorState("Enter a valid waiver evidence reference.");
+  }
+
+  if (!hasEnvVars) {
+    return evidenceErrorState("The waiver workflow is not connected yet.");
+  }
+
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claims?.claims) {
+    return evidenceErrorState("Sign in with an active UCOA account to record waiver evidence.");
+  }
+
+  const { data, error } = await supabase.rpc("record_event_waiver_evidence", {
+    p_event_id: eventId,
+    p_registration_id: registrationId,
+    p_evidence_reference: evidenceReference.trim(),
+  });
+
+  if (error) {
+    return evidenceErrorState(mapWaiverEvidenceError(error.message));
+  }
+
+  const evidence = (Array.isArray(data) ? data[0] : data) as
+    | {
+        acknowledgement_status: "acknowledged" | "revoked";
+        version: string;
+      }
+    | undefined;
+
+  if (!evidence || evidence.acknowledgement_status !== "acknowledged") {
+    return evidenceErrorState("We could not record waiver evidence. Please try again.");
+  }
+
+  revalidatePath(`/protected/events/${eventId}/attendance`);
+  revalidatePath(`/events/${eventId}`);
+
+  return {
+    result: "success",
+    message: `Waiver evidence recorded for ${evidence.version}.`,
+    registrationId,
+    version: evidence.version,
   };
 }

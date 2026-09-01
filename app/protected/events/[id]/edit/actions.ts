@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  initialEventInstanceActionState,
+  initialEventStatusActionState,
+  initialEventWaiverAssignmentActionState,
+} from "./action-state";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 
@@ -25,19 +30,14 @@ export type EventInstanceActionState = {
   message: string;
 };
 
-export const initialEventInstanceActionState: EventInstanceActionState = {
-  result: "idle",
-  message: "",
-};
-
 export type EventStatusActionState = {
   result: "idle" | "success" | "error";
   message: string;
 };
 
-export const initialEventStatusActionState: EventStatusActionState = {
-  result: "idle",
-  message: "",
+export type EventWaiverAssignmentActionState = {
+  result: "idle" | "success" | "error";
+  message: string;
 };
 
 const uuidPattern =
@@ -145,7 +145,6 @@ export async function updateEventInstance(
     p_visibility: visibility,
     p_member_description: memberDescription,
     p_exact_location: typeof exactLocation === "string" && exactLocation.trim() ? exactLocation : null,
-    p_waiver_required: formData.get("waiverRequired") === "true",
   });
 
   if (error) {
@@ -259,5 +258,86 @@ export async function setEventStatus(
   return {
     result: "success",
     message: statusMessages[targetStatus],
+  };
+}
+
+function waiverAssignmentErrorState(
+  message: string,
+): EventWaiverAssignmentActionState {
+  return {
+    ...initialEventWaiverAssignmentActionState,
+    result: "error",
+    message,
+  };
+}
+
+function mapWaiverAssignmentError(message: string) {
+  if (message.includes("approved waiver unavailable")) {
+    return "Choose an approved waiver before assigning it to this event.";
+  }
+
+  if (message.includes("event private details unavailable")) {
+    return "Add the event's member details before assigning a waiver.";
+  }
+
+  if (message.includes("event unavailable")) {
+    return "This event is unavailable for waiver changes.";
+  }
+
+  return "We could not update the event waiver. Please try again.";
+}
+
+export async function setEventWaiverAssignment(
+  _previousState: EventWaiverAssignmentActionState,
+  formData: FormData,
+): Promise<EventWaiverAssignmentActionState> {
+  const eventId = formData.get("eventId");
+  const waiverId = formData.get("waiverId");
+
+  if (
+    typeof eventId !== "string" ||
+    !uuidPattern.test(eventId) ||
+    typeof waiverId !== "string" ||
+    (waiverId !== "none" && !uuidPattern.test(waiverId))
+  ) {
+    return waiverAssignmentErrorState("We could not update the event waiver. Please try again.");
+  }
+
+  if (!hasEnvVars) {
+    return waiverAssignmentErrorState("Waiver management is not connected yet.");
+  }
+
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claims?.claims) {
+    return waiverAssignmentErrorState("Sign in with an authorized UCOA account to manage waivers.");
+  }
+
+  const { data, error } = await supabase.rpc("set_event_waiver", {
+    p_event_id: eventId,
+    p_waiver_id: waiverId === "none" ? null : waiverId,
+  });
+
+  if (error) {
+    return waiverAssignmentErrorState(mapWaiverAssignmentError(error.message));
+  }
+
+  const assignment = (Array.isArray(data) ? data[0] : data) as
+    | { waiver_required: boolean }
+    | undefined;
+
+  if (!assignment) {
+    return waiverAssignmentErrorState("We could not update the event waiver. Please try again.");
+  }
+
+  revalidatePath(`/protected/events/${eventId}/edit`);
+  revalidatePath(`/events/${eventId}`);
+
+  return {
+    result: "success",
+    message: assignment.waiver_required
+      ? "Approved waiver assigned to this event."
+      : "Waiver requirement cleared for this event.",
   };
 }

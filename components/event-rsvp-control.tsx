@@ -12,10 +12,10 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import {
-  initialEventRegistrationActionState,
   updateEventRegistration,
   type EventRegistrationStatus,
 } from "@/app/events/[id]/actions";
+import { initialEventRegistrationActionState } from "@/app/events/[id]/action-state";
 import { Button } from "@/components/ui/button";
 
 type EventRsvpControlProps = {
@@ -23,6 +23,8 @@ type EventRsvpControlProps = {
   eventStatus: "published" | "cancelled" | "completed";
   signedIn: boolean;
   memberDetailsAvailable: boolean;
+  waiverRequired: boolean;
+  waiverAcknowledged: boolean;
   initialRegistrationStatus: EventRegistrationStatus | null;
   initialWaitlistPosition: number | null;
 };
@@ -48,6 +50,8 @@ export function EventRsvpControl({
   eventStatus,
   signedIn,
   memberDetailsAvailable,
+  waiverRequired,
+  waiverAcknowledged,
   initialRegistrationStatus,
   initialWaitlistPosition,
 }: EventRsvpControlProps) {
@@ -114,6 +118,8 @@ export function EventRsvpControl({
   const isWaitlisted = registrationStatus === "waitlisted";
   const isClosed = registrationStatus === "attended" || registrationStatus === "no_show";
   const intent = isConfirmed || isWaitlisted ? "cancel" : "register";
+  const waiverBlocksRegistration =
+    intent === "register" && waiverRequired && !waiverAcknowledged;
 
   return (
     <div className="mt-8 border-t border-[#c9d6d0] pt-6">
@@ -145,13 +151,17 @@ export function EventRsvpControl({
         <p className="mt-3 text-sm leading-6 text-[#71847b]">
           Attendance has closed registration for this event.
         </p>
+      ) : waiverBlocksRegistration ? (
+        <p className="mt-3 text-sm leading-6 text-[#71847b]">
+          Acknowledge the approved waiver above before reserving a place.
+        </p>
       ) : (
         <p className="mt-3 text-sm leading-6 text-[#71847b]">
           Reserve your place through the UCOA event system.
         </p>
       )}
 
-      {isClosed ? null : (
+      {isClosed || waiverBlocksRegistration ? null : (
         <form action={formAction} className="mt-5">
           <input name="eventId" type="hidden" value={eventId} />
           <input name="intent" type="hidden" value={intent} />

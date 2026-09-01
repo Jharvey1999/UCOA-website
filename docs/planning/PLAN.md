@@ -37,7 +37,7 @@ The replacement must support the patterns visible in the current UCOA community:
 | External integrations | Links and manual workflows at launch | Reduces integration risk while preserving the current club channels. |
 | Mobile | Responsive web and PWA-friendly behavior | Covers phones without a separate native application in the first release. |
 | Python | Deferred | A separate Python service is not justified until a concrete integration or scheduled workload cannot be handled by Next.js, Supabase, or a small server-side function. |
-| Waivers | Model version and completion status now; approve final signing workflow before outdoor RSVP launch | Legal wording and enforceability must come from UCOA, not implementation assumptions. |
+| Waivers | Model version, completion status, and private document references now; approve final signing workflow before outdoor RSVP launch | Legal wording and enforceability must come from UCOA, not implementation assumptions. |
 
 ## 3. MVP scope
 
@@ -54,7 +54,7 @@ The replacement must support the patterns visible in the current UCOA community:
 9. Organizer tools limited to hosted events.
 10. Executive tools for membership, roles, events, settings, imports, safe exports, and audit logs.
 11. Private profile photos and controlled access through Supabase Storage.
-12. Versioned waiver records and an approved interim completion/status workflow.
+12. Versioned waiver records, private document references, and an approved interim completion/status workflow.
 13. Database migrations, RLS policy tests, RSVP transaction tests, and responsive acceptance checks.
 
 ### Deferred
@@ -115,7 +115,7 @@ The application must never collect bank logins, passwords, card details, or unne
 
 1. Member browses a calendar or list filtered by date, activity type, and difficulty.
 2. Member opens an event and sees the description and location only when their membership and event policy allow it.
-3. Member completes the approved waiver workflow if required.
+3. Member reviews the approved private waiver document and completes the approved waiver workflow if required.
 4. Member RSVPs. A database transaction confirms the member or places them in the waitlist.
 5. Member can cancel. The next eligible waitlisted member is promoted atomically.
 6. Organizer records attendance after the event.
@@ -187,7 +187,7 @@ The first schema should include these entities. Names are provisional until the 
 | `events` | Explicit event instance, public/member content, schedule, location policy, activity type, difficulty, capacity, status, waiver reference, and series reference. |
 | `event_hosts` | Event-to-organizer many-to-many relation. |
 | `event_registrations` | RSVP, waitlist, cancellation, promotion, attendance, and safe organizer notes. |
-| `waivers` | Versioned waiver metadata and event applicability. |
+| `waivers` | Versioned waiver metadata, private document references, and event applicability. |
 | `waiver_acknowledgements` | Member, waiver version, event, status, timestamp, and approved evidence reference. |
 | `site_settings` | Executive-managed public contact, membership instructions, Discord, Instagram, forms, and other links. No secrets. |
 | `audit_log` | Actor, action, entity, safe metadata, timestamp, and request context for sensitive operational actions. |
@@ -273,9 +273,11 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 - Generate typed database definitions.
 - Add pgTAP tests for each exposed table and role scenario.
 
-**Progress:** The membership, event authorization, private Storage, RSVP, attendance, recurring-generation, per-instance editing, and event-status workflow migrations and pgTAP suites cover date-bounded membership states, executive-only metadata, trusted roles, public-safe event columns, private event details, bounded series, host-scoped organizer access, path-scoped profile/event media, audit records, grants, RLS, transactional capacity/waitlist behavior, concurrent final-slot protection, manager-scoped attendee rosters, audited attendance transitions, idempotent daily/weekly/monthly instance generation, local-time and DST preservation, max-instance bounds, safe template copying, manager-scoped atomic instance edits, local-time input conversion, immutable series links, host/executive publishing and moderation, direct status-update denial, valid status transitions, and registration closure when events are cancelled. The Storage migration now leaves Supabase-managed table ownership and grants intact, compares managed text owner IDs correctly, and preserves owner immutability through RLS. Local migration and pgTAP execution passes with 360 assertions across nine suites. Generated database types, signed URL application code, upload validation, and broader workflow/UI scenarios remain.
+**Progress:** The membership, event authorization, private Storage, RSVP, attendance, recurring-generation, per-instance editing, event-status, and organizer-recorded waiver evidence migrations and pgTAP suites cover date-bounded membership states, executive-only metadata, trusted roles, public-safe event columns, private event details, bounded series, host-scoped organizer access, path-scoped profile/event media, audit records, grants, RLS, transactional capacity/waitlist behavior, concurrent final-slot protection, manager-scoped attendee rosters, audited attendance transitions, idempotent daily/weekly/monthly instance generation, local-time and DST preservation, max-instance bounds, safe template copying, manager-scoped atomic instance edits, local-time input conversion, immutable series links, host/executive publishing and moderation, direct status-update denial, valid status transitions, registration closure when events are cancelled, approved waiver assignment, private PDF references, signed document access, and host/executive recording of opaque evidence references. The Storage migration now leaves Supabase-managed table ownership and grants intact, compares managed text owner IDs correctly, preserves owner immutability through RLS, and protects waiver PDF objects with assignment-scoped policies. Local migration and pgTAP execution passes with 513 assertions across twelve suites. Generated database types, production artifact upload, and broader workflow/UI scenarios remain.
 
 **Exit check:** local migrations and RLS tests pass, including anonymous, pending, active-member, organizer, and executive cases.
+
+**Validation update (August 31, 2026):** The versioned waiver migration and focused pgTAP suite now pass with the existing coverage: 460 assertions across ten suites. Waiver metadata is versioned and auditable, event assignment is executive-controlled through the authorized RPC, member acknowledgement is available only for the approved built-in method, and external, organizer-recorded, legacy, unavailable, and revoked paths remain fail-closed for RSVP. The member event page receives only safe waiver status fields; the waiver foreign key is not exposed through direct authenticated table access or member-facing props. Ordinary event edits preserve unresolved legacy requirements, and direct authenticated writes to the legacy flag are denied.
 
 ### Phase 4 - Public and membership experience
 
@@ -297,6 +299,8 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 
 **Exit check:** the last-slot race, waitlist promotion, cancellation, event cancellation, and organizer scope tests pass.
 
+**Waiver slice (August 30, 2026):** Approved waiver metadata, event assignment, acknowledgement status, member acknowledgement, and waiver-aware registration gating are implemented. The protected event editor includes an approved-waiver selector, and the standalone legacy waiver checkbox has been reconciled so ordinary event edits preserve unresolved legacy requirements. The member event page offers the built-in acknowledgement control without embedding legal wording and explains when an external or organizer-recorded workflow cannot be completed in the portal. The protected attendance roster now records an opaque evidence reference for an approved assigned `organizer_recorded` waiver through a host/executive RPC; it does not upload signed evidence or choose retention policy. The supplied 2025-2026 provincial and national PDFs are inventoried as draft organizer-recorded versions, protected by a private Storage bucket and an authenticated event-scoped signed-URL route. Positive member, organizer, and executive browser workflows plus test-backed authorization boundaries are recorded in [phase-5-acceptance.md](phase-5-acceptance.md); Phase 5 remains in progress until the full authenticated responsive review, production object upload, and UCOA approval of the final wording and workflow are complete.
+
 ### RSVP handoff - August 29, 2026 (resolved August 30, 2026)
 
 The RSVP review fixes in [supabase/migrations/20260829030000_event_registrations.sql](../../supabase/migrations/20260829030000_event_registrations.sql) and [supabase/tests/004_event_registrations.sql](../../supabase/tests/004_event_registrations.sql) were applied on August 30, 2026:
@@ -313,12 +317,16 @@ Runtime validation: `npx --yes supabase db reset --local --yes` applies all eigh
 
 ### Phase 6 - Migration and pilot
 
+**Status:** in progress (planning and sanitized rehearsal only; kickoff August 31, 2026)
+
+**Progress:** The migration-and-pilot boundary, reviewed mapping requirements, dry-run controls, pilot scope, blockers, and exit criteria are recorded in [phase-6-migration-pilot.md](phase-6-migration-pilot.md). No real export, production import, account-claim batch, or cutover is authorized yet.
+
 - Build import preview and audit-safe export.
 - Rehearse with sanitized membership data.
 - Recreate upcoming events and verify private locations.
 - Run an executive acceptance pass and a small member pilot.
 
-**Exit check:** migration reports reconcile, pilot feedback is recorded, and cutover risks have owners.
+**Exit check:** migration reports reconcile, pilot feedback is recorded, and cutover risks have owners. The Phase 6 acceptance checklist must pass before Supabase becomes authoritative.
 
 ### Phase 7 - Production cutover
 

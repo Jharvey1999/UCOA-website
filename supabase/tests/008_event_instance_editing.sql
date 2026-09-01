@@ -180,7 +180,7 @@ values
     '80000000-0000-0000-0000-000000000101',
     'Original private description.',
     'Original private location.',
-    false
+    true
   ),
   (
     '80000000-0000-0000-0000-000000000102',
@@ -205,7 +205,7 @@ values
 select is(
   has_function_privilege(
     'anon',
-    'public.update_event_instance(uuid, text, text, text, text, text, public.event_activity_type, text, public.event_visibility, text, text, boolean)',
+    'public.update_event_instance(uuid, text, text, text, text, text, public.event_activity_type, text, public.event_visibility, text, text)',
     'execute'
   ),
   false,
@@ -214,7 +214,7 @@ select is(
 select is(
   has_function_privilege(
     'authenticated',
-    'public.update_event_instance(uuid, text, text, text, text, text, public.event_activity_type, text, public.event_visibility, text, text, boolean)',
+    'public.update_event_instance(uuid, text, text, text, text, text, public.event_activity_type, text, public.event_visibility, text, text)',
     'execute'
   ),
   true,
@@ -234,8 +234,7 @@ select throws_ok(
       null,
       'public',
       'Anonymous details',
-      null,
-      false
+      null
     )$$,
   '42501',
   null,
@@ -256,8 +255,7 @@ select throws_ok(
       null,
       'public',
       'Pending details',
-      null,
-      false
+      null
     )$$,
   '42501',
   'event unavailable',
@@ -277,8 +275,7 @@ select throws_ok(
       null,
       'public',
       'Expired details',
-      null,
-      false
+      null
     )$$,
   '42501',
   'event unavailable',
@@ -298,8 +295,7 @@ select throws_ok(
       null,
       'public',
       'Cross organizer details',
-      null,
-      false
+      null
     )$$,
   '42501',
   'event unavailable',
@@ -320,8 +316,7 @@ select is(
      'moderate',
      'members_only',
      'Edited member description.',
-     'Edited private location.',
-     true
+    'Edited private location.'
    )),
   'Edited Instance',
   'the hosted organizer can update one event instance'
@@ -367,7 +362,7 @@ select is(
   (select waiver_required from public.event_private_details
    where event_id = '80000000-0000-0000-0000-000000000101'),
   true,
-  'the per-instance waiver flag is updated with private details'
+  'per-instance editing preserves the legacy waiver requirement'
 );
 select is(
   (select series_id from public.event_management
@@ -400,8 +395,7 @@ select throws_ok(
       null,
       'public',
       'Valid details',
-      null,
-      false
+      null
     )$$,
   '22023',
   'event input is invalid',
@@ -419,8 +413,7 @@ select throws_ok(
       null,
       'public',
       'Valid details',
-      null,
-      false
+      null
     )$$,
   '22023',
   'event input is invalid',
@@ -438,8 +431,7 @@ select throws_ok(
       null,
       'public',
       'Valid details',
-      null,
-      false
+      null
     )$$,
   '22023',
   'event input is invalid',
@@ -457,8 +449,7 @@ select throws_ok(
       null,
       'public',
       'Valid details',
-      null,
-      false
+      null
     )$$,
   '22023',
   'event input is invalid',
@@ -497,8 +488,7 @@ select throws_ok(
       null,
       'public',
       'Unknown details',
-      null,
-      false
+      null
     )$$,
   '42501',
   'event unavailable',
@@ -544,8 +534,7 @@ select is(
      null,
      'public',
      'Executive member description.',
-     'Executive private location.',
-     false
+    'Executive private location.'
    )),
   'Executive Edited Instance',
   'executives can edit an organizer-owned event instance'

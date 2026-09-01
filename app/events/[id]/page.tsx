@@ -12,6 +12,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { EventRsvpControl } from "@/components/event-rsvp-control";
+import {
+  EventWaiverControl,
+  type EventWaiverStatus,
+} from "@/components/event-waiver-control";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 
@@ -78,6 +82,7 @@ async function loadEvent(eventId: string) {
       canManage: false,
       initialRegistrationStatus: null,
       initialWaitlistPosition: null,
+      waiverStatus: null,
       signedIn: false,
       unavailable: true,
     };
@@ -99,6 +104,7 @@ async function loadEvent(eventId: string) {
       canManage: false,
       initialRegistrationStatus: null,
       initialWaitlistPosition: null,
+      waiverStatus: null,
       signedIn: false,
       unavailable: false,
     };
@@ -110,6 +116,7 @@ async function loadEvent(eventId: string) {
   let canManage = false;
   let details: PrivateEventDetails | null = null;
   let registration: EventRegistration | null = null;
+  let waiverStatus: EventWaiverStatus | null = null;
 
   if (currentUserId) {
     const { data: managedEvent } = await supabase
@@ -126,6 +133,31 @@ async function loadEvent(eventId: string) {
       .maybeSingle();
     details = (privateDetails ?? null) as PrivateEventDetails | null;
 
+    if (details?.waiver_required) {
+      const { data: waiverStatusData } = await supabase.rpc(
+        "get_event_waiver_status",
+        { p_event_id: eventId },
+      );
+      const statusRecord = Array.isArray(waiverStatusData)
+        ? waiverStatusData[0]
+        : waiverStatusData;
+
+      if (statusRecord) {
+        const typedStatus = statusRecord as {
+          version: string | null;
+          acknowledgement_method: EventWaiverStatus["acknowledgementMethod"];
+          document_reference: string | null;
+          acknowledgement_status: EventWaiverStatus["acknowledgementStatus"];
+        };
+        waiverStatus = {
+          version: typedStatus.version,
+          acknowledgementMethod: typedStatus.acknowledgement_method,
+          documentReference: typedStatus.document_reference,
+          acknowledgementStatus: typedStatus.acknowledgement_status,
+        };
+      }
+    }
+
     const { data: registrationData } = await supabase
       .from("event_registrations")
       .select("status, waitlist_position")
@@ -141,6 +173,7 @@ async function loadEvent(eventId: string) {
     canManage,
     initialRegistrationStatus: registration?.status ?? null,
     initialWaitlistPosition: registration?.waitlist_position ?? null,
+    waiverStatus,
     signedIn,
     unavailable: false,
   };
@@ -193,6 +226,7 @@ export default async function EventDetailPage({
     canManage,
     initialRegistrationStatus,
     initialWaitlistPosition,
+    waiverStatus,
     signedIn,
     unavailable,
   } = await loadEvent(id);
@@ -332,12 +366,11 @@ export default async function EventDetailPage({
               <p className="mt-1 text-lg font-semibold text-[#19352d]">
                 {details.exact_location ?? "Shared by the organizer"}
               </p>
-              {details.waiver_required ? (
-                <p className="mt-6 border-t border-[#c9d6d0] pt-5 text-sm leading-6 text-[#71847b]">
-                  This event requires the approved UCOA waiver workflow before
-                  registration can open.
-                </p>
-              ) : null}
+              <EventWaiverControl
+                eventId={event.id}
+                status={waiverStatus}
+                waiverRequired={details.waiver_required}
+              />
             </>
           ) : (
             <p className="mt-4 text-sm leading-6 text-[#71847b]">
@@ -352,6 +385,10 @@ export default async function EventDetailPage({
             initialWaitlistPosition={initialWaitlistPosition}
             memberDetailsAvailable={Boolean(details)}
             signedIn={signedIn}
+            waiverAcknowledged={
+              waiverStatus?.acknowledgementStatus === "acknowledged"
+            }
+            waiverRequired={Boolean(details?.waiver_required)}
           />
           {canManage ? (
             <div className="mt-6 flex flex-wrap items-center gap-4">

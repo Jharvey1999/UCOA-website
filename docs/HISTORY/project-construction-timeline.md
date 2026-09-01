@@ -99,7 +99,46 @@ This document records major planning, implementation, migration, testing, and la
 - Added the protected status control to `/protected/events/[id]/edit`; hosted organizers can manage their events and executives can moderate any event visible through the management projection.
 - Added 37 pgTAP assertions covering function privileges, column privileges, anonymous/pending/expired/cross-organizer denial, host publication and cancellation, missing private details, transition bounds, executive moderation, registration closure, idempotency, and status audit attribution. The local run now passes 360 assertions across nine suites.
 
+## Versioned waiver workflow - August 30, 2026
+
+- Added versioned waiver metadata, event applicability, acknowledgement evidence references, status auditing, RLS, explicit grants, and authenticated-only status, acknowledgement, and assignment RPCs.
+- Added 98 pgTAP assertions for approved built-in, external, organizer-recorded, legacy, draft, retired, unassigned, revoked, guessed-ID, cross-user, pending, expired, organizer, and executive cases. The full local run now passes 460 assertions across ten suites.
+- Added an executive-only approved-waiver selector to the protected event editor, with server-side claims validation and the existing manager-authorized assignment RPC.
+- Added the member event-page waiver status projection and built-in acknowledgement control. The control does not embed legal wording, does not expose the waiver foreign key to member-facing props, and keeps RSVP blocked until the database records acknowledgement.
+- External and organizer-recorded methods remain visible as approved but unsupported in-portal workflows; legacy waiver flags without an approved waiver remain fail-closed.
+- **Open items:** UCOA must approve the final waiver wording and completion workflow, and broader responsive member, organizer, and executive acceptance checks remain before Phase 5 can close.
+
+## Waiver control reconciliation - August 31, 2026
+
+- Removed the standalone legacy waiver checkbox from ordinary event editing and made versioned waiver assignment the only workflow that changes the requirement state.
+- Ordinary instance edits now preserve an unresolved legacy requirement, direct authenticated writes to the legacy flag are denied, and executive review can explicitly assign an approved version or clear the old requirement.
+- Added the Phase 5 member, organizer, executive, automated, and UCOA approval checklist in [docs/planning/phase-5-acceptance.md](../planning/phase-5-acceptance.md).
+- **Open items:** final UCOA wording and signing-workflow approval plus completion of the acceptance checklist remain required before Phase 5 can close.
+
+## Authenticated member acceptance - September 1, 2026
+
+- Completed the sanitized local active-member browser flow: private event details rendered, the approved built-in waiver was acknowledged, RSVP was confirmed, and the registration was cancelled successfully.
+- Verified the acknowledged member state and RSVP control at phone, tablet, and desktop widths without horizontal overflow.
+- Completed the sanitized local organizer and executive browser flow: a hosted event was edited without changing its series, creator, or publication state; status and attendance actions succeeded; and an executive assigned and explicitly cleared an approved waiver while the organizer saw no executive-only selector.
+- **Open items:** full authenticated multi-viewport acceptance plus UCOA approval of the final waiver wording and completion workflow remain required before Phase 5 can close.
+
+## Real waiver document integration - September 1, 2026
+
+- Inspected the supplied two-page provincial and national PDFs and recorded their observed 2025-2026 period, signature fields, minor-guardian fields, and SHA-256 identifiers without copying their legal text into source.
+- Added draft `organizer_recorded` records for the two forms, a private `waiver-documents` bucket with path-scoped policies, and an authenticated event-scoped route that issues five-minute signed URLs for assigned documents.
+- Added the host/executive organizer-recorded evidence RPC and protected attendance-roster control. The operation derives the participant from an event registration, requires an approved assigned organizer-recorded waiver, and stores only the existing opaque evidence reference.
+- Added 25 focused real-document assertions and 28 organizer-evidence assertions; the full local run now passes 513 assertions across twelve suites.
+- Uploaded the exact source binaries to the local private bucket and verified both objects by byte count and SHA-256 round trip. This does not upload them to production or approve either form.
+- **Open items:** UCOA must confirm current wording, provincial/national event applicability, completion evidence ownership and retention, production private object upload, and final approval before either form can be assigned to a production event.
+
 ## Planned milestones
+
+## Phase 6 migration and pilot kickoff - August 31, 2026
+
+- Started Phase 6 as planning and sanitized rehearsal only; no real source export, production import, account-claim batch, or cutover is authorized.
+- Added [docs/planning/phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md) with source authority, reviewed mapping, prohibited-field, dry-run, reconciliation, upcoming-event, pilot, and exit requirements.
+- Updated the membership migration plan and README to identify the Phase 6 handoff and its executive/data-owner prerequisites.
+- **Open items:** name the data owner and backup owner, approve source authority and retention, provide an approved sanitized sample, resolve field and membership-year decisions, complete Phase 5 approval, and assign parallel-calendar and cutover owners.
 
 ### 1. Decisions and ownership
 
@@ -138,7 +177,7 @@ This document records major planning, implementation, migration, testing, and la
 
 ### 5. Event workflows
 
-**Status:** in progress (event authorization schema complete August 29, 2026; recurring generation and per-instance editing complete August 30, 2026; organizer workflow implementation remains)
+**Status:** in progress (event authorization schema complete August 29, 2026; recurring generation, per-instance editing, organizer moderation, and the versioned waiver acknowledgement slice complete August 30, 2026; broader organizer workflow and executive acceptance remain)
 
 - Build event list/calendar and public/member detail views.
 - Build bounded recurring series generation and per-instance editing.

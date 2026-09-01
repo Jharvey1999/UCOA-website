@@ -4,6 +4,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { EventInstanceForm } from "@/components/event-instance-form";
+import {
+  EventWaiverAssignmentControl,
+  type EventWaiverOption,
+} from "@/components/event-waiver-assignment-control";
 import type {
   EventActivityType,
   EventStatus,
@@ -134,8 +138,38 @@ export default async function EventInstanceEditPage({
     notFound();
   }
 
+  const { data: waiverStatusData } = await supabase.rpc(
+    "get_event_waiver_status",
+    { p_event_id: id },
+  );
+  const waiverStatusRecord = Array.isArray(waiverStatusData)
+    ? waiverStatusData[0]
+    : waiverStatusData;
+  const currentWaiverId =
+    (waiverStatusRecord as { waiver_id?: string | null } | null)?.waiver_id ?? null;
+
+  const { data: executiveRole } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", claims.claims.sub)
+    .eq("role", "executive")
+    .maybeSingle();
+  const isExecutive = Boolean(executiveRole);
+  let approvedWaivers: EventWaiverOption[] = [];
+
+  if (isExecutive) {
+    const { data: waiverData } = await supabase
+      .from("waivers")
+      .select("id, version, acknowledgement_method")
+      .eq("status", "approved")
+      .order("version");
+    approvedWaivers = (waiverData ?? []) as EventWaiverOption[];
+  }
+
   const typedEvent = event as EventManagementRecord;
   const typedDetails = privateDetails as PrivateEventDetails | null;
+  const legacyWaiverRequired =
+    typedDetails?.waiver_required === true && currentWaiverId === null;
 
   return (
     <main className="min-h-screen bg-[#f3f0e8] text-[#19352d]">
@@ -228,6 +262,14 @@ export default async function EventInstanceEditPage({
           status={typedEvent.status}
         />
 
+        {isExecutive ? (
+          <EventWaiverAssignmentControl
+            currentWaiverId={currentWaiverId}
+            eventId={typedEvent.id}
+            options={approvedWaivers}
+          />
+        ) : null}
+
         <div className="grid gap-10 pt-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
           <div className="border-l-2 border-[#b35f35] pl-5 text-[#40574e]">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#b35f35]">
@@ -264,7 +306,7 @@ export default async function EventInstanceEditPage({
               title: typedEvent.title,
               timezoneName: typedEvent.timezone_name,
               visibility: typedEvent.visibility,
-              waiverRequired: typedDetails?.waiver_required ?? false,
+              legacyWaiverRequired,
             }}
           />
         </div>

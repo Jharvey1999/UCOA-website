@@ -54,8 +54,10 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/events/") ||
     pathname === "/auth" ||
     pathname.startsWith("/auth/");
+  const isWaiverDocumentRoute =
+    pathname.startsWith("/api/events/") && pathname.endsWith("/waiver-document");
 
-  if (!user && !isPublicPath) {
+  if (!user && !isPublicPath && !isWaiverDocumentRoute) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";

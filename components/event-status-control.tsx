@@ -4,11 +4,11 @@ import { Ban, CheckCircle2, Megaphone } from "lucide-react";
 import { useActionState } from "react";
 
 import {
-  initialEventStatusActionState,
   setEventStatus,
   type EventStatus,
   type EventStatusActionState,
 } from "@/app/protected/events/[id]/edit/actions";
+import { initialEventStatusActionState } from "@/app/protected/events/[id]/edit/action-state";
 import { Button } from "@/components/ui/button";
 
 type EventStatusControlProps = {

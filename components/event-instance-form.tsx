@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import {
-  initialEventInstanceActionState,
   updateEventInstance,
   type EventActivityType,
   type EventVisibility,
 } from "@/app/protected/events/[id]/edit/actions";
+import { initialEventInstanceActionState } from "@/app/protected/events/[id]/edit/action-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,7 @@ type EventInstanceFormValues = {
   visibility: EventVisibility;
   memberDescription: string;
   exactLocation: string;
-  waiverRequired: boolean;
+  legacyWaiverRequired: boolean;
 };
 
 type EventInstanceFormProps = {
@@ -216,16 +216,15 @@ export function EventInstanceForm({
             name="exactLocation"
           />
         </div>
-        <label className="flex items-start gap-3 text-sm leading-6 text-[#40574e]">
-          <input
-            className="mt-1 size-4 accent-[#19352d]"
-            defaultChecked={initialValues.waiverRequired}
-            name="waiverRequired"
-            type="checkbox"
-            value="true"
-          />
-          <span>This event requires the approved waiver workflow.</span>
-        </label>
+        {initialValues.legacyWaiverRequired ? (
+          <p
+            aria-live="polite"
+            className="border border-[#d9a06f] bg-[#fff5e8] px-4 py-3 text-sm leading-6 text-[#8e542f]"
+            role="status"
+          >
+            This event still has a legacy waiver requirement. An executive must assign an approved waiver or clear the requirement before RSVP can open.
+          </p>
+        ) : null}
       </fieldset>
 
       {state.result !== "idle" ? (

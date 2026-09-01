@@ -1,6 +1,6 @@
 # UCOA Membership Data and Migration Plan
 
-**Status:** planning
+**Status:** Phase 6 rehearsal planning (started August 31, 2026)
 
 **Last reviewed:** August 29, 2026
 
@@ -9,6 +9,8 @@
 The existing Google Sheet will be used as a controlled, one-time migration source. It will not remain the long-term source of truth and it must not be committed to this repository.
 
 After the migration and verification period, Supabase will be authoritative for accounts, profiles, membership years, access status, approvals, and safe payment verification metadata.
+
+The Phase 6 migration and pilot worklist is [docs/planning/phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md). This status records planning only; no real export or production import is authorized.
 
 ## Why this boundary matters
 

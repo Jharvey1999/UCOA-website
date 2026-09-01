@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  initialEventRegistrationActionState,
+  initialEventWaiverAcknowledgementActionState,
+} from "./action-state";
 import { createClient } from "@/lib/supabase/server";
 import { hasEnvVars } from "@/lib/utils";
 
@@ -19,11 +23,10 @@ export type EventRegistrationActionState = {
   waitlistPosition: number | null;
 };
 
-export const initialEventRegistrationActionState: EventRegistrationActionState = {
-  result: "idle",
-  message: "",
-  registrationStatus: null,
-  waitlistPosition: null,
+export type EventWaiverAcknowledgementActionState = {
+  result: "idle" | "success" | "error";
+  message: string;
+  version: string | null;
 };
 
 const eventIdPattern =
@@ -36,12 +39,41 @@ type RegistrationRpcRow = {
   waitlist_position: number | null;
 };
 
+type WaiverAcknowledgementRpcRow = {
+  acknowledgement_status: "acknowledged" | "revoked";
+  version: string;
+};
+
 function errorState(message: string): EventRegistrationActionState {
   return {
     ...initialEventRegistrationActionState,
     result: "error",
     message,
   };
+}
+
+function waiverErrorState(message: string): EventWaiverAcknowledgementActionState {
+  return {
+    ...initialEventWaiverAcknowledgementActionState,
+    result: "error",
+    message,
+  };
+}
+
+function mapWaiverError(message: string) {
+  if (message.includes("approved waiver workflow is external")) {
+    return "This event uses an approved waiver workflow outside this portal.";
+  }
+
+  if (message.includes("approved waiver unavailable")) {
+    return "The approved waiver is not available for this event.";
+  }
+
+  if (message.includes("event waiver unavailable")) {
+    return "Sign in with an active UCOA membership to acknowledge this waiver.";
+  }
+
+  return "We could not record your waiver acknowledgement. Please try again.";
 }
 
 function mapRegistrationError(message: string, intent: RegistrationIntent) {
@@ -127,5 +159,57 @@ export async function updateEventRegistration(
     message,
     registrationStatus: registration.registration_status,
     waitlistPosition: registration.waitlist_position,
+  };
+}
+
+export async function recordEventWaiverAcknowledgement(
+  _previousState: EventWaiverAcknowledgementActionState,
+  formData: FormData,
+): Promise<EventWaiverAcknowledgementActionState> {
+  const eventId = formData.get("eventId");
+  const acknowledgementConsent = formData.get("acknowledge");
+
+  if (
+    typeof eventId !== "string" ||
+    !eventIdPattern.test(eventId) ||
+    acknowledgementConsent !== "true"
+  ) {
+    return waiverErrorState("We could not record your waiver acknowledgement. Please try again.");
+  }
+
+  if (!hasEnvVars) {
+    return waiverErrorState("The waiver workflow is not connected yet.");
+  }
+
+  const supabase = await createClient();
+  const { data: claims, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claims?.claims) {
+    return waiverErrorState("Sign in with an active UCOA account to acknowledge this waiver.");
+  }
+
+  const { data, error } = await supabase.rpc(
+    "record_event_waiver_acknowledgement",
+    { p_event_id: eventId },
+  );
+
+  if (error) {
+    return waiverErrorState(mapWaiverError(error.message));
+  }
+
+  const acknowledgement = (Array.isArray(data) ? data[0] : data) as
+    | WaiverAcknowledgementRpcRow
+    | undefined;
+
+  if (!acknowledgement || acknowledgement.acknowledgement_status !== "acknowledged") {
+    return waiverErrorState("We could not record your waiver acknowledgement. Please try again.");
+  }
+
+  revalidatePath(`/events/${eventId}`);
+
+  return {
+    result: "success",
+    message: `The approved waiver version ${acknowledgement.version} is acknowledged for this event.`,
+    version: acknowledgement.version,
   };
 }

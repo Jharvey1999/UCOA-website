@@ -2,7 +2,7 @@
 
 The University of Calgary Outdoor Adventurers (UCOA) website will replace the club's core Meetup workflows with a private, responsive member portal. It will support public club discovery, approved membership, outdoor event publishing, RSVP and waitlists, organizer workflows, and executive administration.
 
-The repository contains the planning source of truth plus the initial Next.js and Supabase implementation, including membership, event authorization, private Storage policy slices, RSVP transactions, a public event calendar, manager-scoped attendance recording, bounded recurring event generation, protected per-instance editing, and organizer publishing with executive moderation. The implementation source of truth is [docs/planning/PLAN.md](docs/planning/PLAN.md).
+The repository contains the planning source of truth plus the initial Next.js and Supabase implementation, including membership, event authorization, private Storage policy slices, RSVP transactions, a public event calendar, manager-scoped attendance recording, bounded recurring event generation, protected per-instance editing, organizer publishing with executive moderation, versioned waiver acknowledgement, private waiver PDF delivery, and organizer-recorded evidence references. The implementation source of truth is [docs/planning/PLAN.md](docs/planning/PLAN.md).
 
 ## Product goal
 
@@ -29,6 +29,7 @@ The first release is a core Meetup replacement. Courses, insurance documents, pr
 | Membership source of truth | Controlled one-time import from the legacy Google Sheet, then Supabase |
 | Payments | No payment processor and no bank credentials; show approved e-transfer instructions and record verification metadata only |
 | External integrations | Links and manual workflows for Discord, Instagram, forms, gear, and contact email at launch |
+| Waivers | Store versioned metadata and private document references; keep the supplied 2025-2026 forms in draft until UCOA approves the wording and completion workflow |
 | Mobile target | Responsive web and PWA-friendly behavior; no separate native application in the first release |
 | Python | Deferred until a concrete integration or scheduled workload justifies a separate service |
 
@@ -46,7 +47,7 @@ The current public membership information says the fee is CAD 10 and the members
 
 ### Events
 
-Events support one-off and bounded recurring instances, explicit start and end times, the `America/Edmonton` timezone by default, activity type, difficulty, hosts, public summary, member-only description, member-only location, capacity, waitlist, cancellation, waiver status, and attendance tracking. Recurring generation supports daily, weekly, and monthly local-time schedules with idempotent instance creation, hosted managers can edit one concrete instance without changing its series link or publication status, and hosted organizers or executives can publish, cancel, and complete events through audited status transitions. RSVP changes must be decided atomically in the database.
+Events support one-off and bounded recurring instances, explicit start and end times, the `America/Edmonton` timezone by default, activity type, difficulty, hosts, public summary, member-only description, member-only location, capacity, waitlist, cancellation, versioned waiver status, and attendance tracking. Executives can assign an approved waiver version to an event, active members can acknowledge the approved built-in method before RSVP, and authorized hosts or executives can record an opaque reference for an approved organizer-recorded method; external, unresolved legacy, and unavailable workflows remain fail-closed. Approved private waiver PDFs use event-scoped expiring signed URLs and are not publicly served. Recurring generation supports daily, weekly, and monthly local-time schedules with idempotent instance creation, hosted managers can edit one concrete event without changing its series link or publication status, and hosted organizers or executives can publish, cancel, and complete events through audited status transitions. RSVP changes must be decided atomically in the database.
 
 ### Administration
 
@@ -69,7 +70,7 @@ Security is a product requirement, not a later hardening task. The complete mode
 
 Meetup remains a transition reference and optional archive, not a live synchronization dependency. The migration will use an executive-reviewed export of the legacy Google Sheet and manually recreate or import only authorized upcoming events. Legacy rows without a verified mapping or reliable membership dates remain `needs_verification`; they do not automatically receive access.
 
-See [docs/membership/members-list-plan.md](docs/membership/members-list-plan.md) and [docs/legacy/oldwebsite-meetup.md](docs/legacy/oldwebsite-meetup.md) for the migration rules and observed source behavior.
+Phase 6 migration and pilot planning is in progress, with sanitized rehearsal as the only current scope. See [docs/planning/phase-6-migration-pilot.md](docs/planning/phase-6-migration-pilot.md), [docs/membership/members-list-plan.md](docs/membership/members-list-plan.md), and [docs/legacy/oldwebsite-meetup.md](docs/legacy/oldwebsite-meetup.md) for the migration rules and observed source behavior.
 
 ## External sources
 
@@ -112,6 +113,7 @@ The current public Meetup and Campsite.bio pages showed the Discord invite `http
 - [Instagram findings](docs/legacy/instagram.md)
 - [External service inventory](docs/legacy/external-services.md)
 - [Construction timeline](docs/HISTORY/project-construction-timeline.md)
+- [Waiver source inventory](docs/security/waivers/README.md)
 - [Project Copilot guidance](.github/copilot-instructions.md)
 
 ## Working with Copilot

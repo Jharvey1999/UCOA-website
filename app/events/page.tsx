@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Browse upcoming public events from UCOA Outdoor Adventurers.",
 };
 
+export const instant = false;
+
 type PublicEvent = {
   id: string;
   title: string;

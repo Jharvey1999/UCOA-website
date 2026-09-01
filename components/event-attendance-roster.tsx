@@ -1,15 +1,20 @@
 "use client";
 
-import { Check, CircleOff } from "lucide-react";
+import { Check, CircleOff, FileCheck2 } from "lucide-react";
 import { useActionState } from "react";
 
 import {
-  initialEventAttendanceActionState,
   recordEventAttendance,
+  recordEventWaiverEvidence,
   type EventAttendanceActionState,
   type EventAttendanceStatus,
 } from "@/app/protected/events/[id]/attendance/actions";
+import {
+  initialEventAttendanceActionState,
+  initialEventWaiverEvidenceActionState,
+} from "@/app/protected/events/[id]/attendance/action-state";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export type EventAttendanceRow = {
   registration_id: string;
@@ -22,6 +27,14 @@ export type EventAttendanceRow = {
     | "attended"
     | "no_show";
   attended_at: string | null;
+  waiver_version: string | null;
+  waiver_acknowledgement_method:
+    | "built_in"
+    | "external"
+    | "organizer_recorded"
+    | null;
+  waiver_status: "draft" | "approved" | "retired" | null;
+  waiver_acknowledgement_status: "acknowledged" | "revoked" | null;
 };
 
 type EventAttendanceRosterProps = {
@@ -70,6 +83,20 @@ function displayStatus(
   return row.registration_status;
 }
 
+function displayWaiverStatus(
+  row: EventAttendanceRow,
+  state: {
+    result: "idle" | "success" | "error";
+    registrationId: string | null;
+  },
+) {
+  if (state.result === "success" && state.registrationId === row.registration_id) {
+    return "acknowledged" as const;
+  }
+
+  return row.waiver_acknowledgement_status;
+}
+
 export function EventAttendanceRoster({
   eventId,
   rows,
@@ -77,6 +104,10 @@ export function EventAttendanceRoster({
   const [state, formAction, isPending] = useActionState(
     recordEventAttendance,
     initialEventAttendanceActionState,
+  );
+  const [evidenceState, evidenceFormAction, isEvidencePending] = useActionState(
+    recordEventWaiverEvidence,
+    initialEventWaiverEvidenceActionState,
   );
 
   if (rows.length === 0) {
@@ -100,14 +131,32 @@ export function EventAttendanceRoster({
           {state.message}
         </p>
       ) : null}
+      {evidenceState.result !== "idle" ? (
+        <p
+          aria-live="polite"
+          className={`mb-5 text-sm leading-6 ${
+            evidenceState.result === "error" ? "text-[#9a432d]" : "text-[#557268]"
+          }`}
+          role={evidenceState.result === "error" ? "alert" : undefined}
+        >
+          {evidenceState.message}
+        </p>
+      ) : null}
 
       <div className="border-y border-[#c9d6d0]">
         {rows.map((row) => {
           const currentStatus = displayStatus(row, state);
+          const currentWaiverStatus = displayWaiverStatus(row, evidenceState);
           const canRecord =
             currentStatus === "confirmed" ||
             currentStatus === "attended" ||
             currentStatus === "no_show";
+          const canRecordWaiverEvidence =
+            canRecord &&
+            row.waiver_acknowledgement_method === "organizer_recorded" &&
+            row.waiver_status === "approved" &&
+            Boolean(row.waiver_version) &&
+            currentWaiverStatus !== "acknowledged";
 
           return (
             <div
@@ -119,6 +168,83 @@ export function EventAttendanceRoster({
                 <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-[#71847b]">
                   {statusLabel(currentStatus)}
                 </p>
+
+                {row.waiver_version ? (
+                  <div className="mt-4 border-t border-[#dfe9e1] pt-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#557268]">
+                      Assigned waiver
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#40574e]">
+                      {row.waiver_version}
+                    </p>
+
+                    {currentWaiverStatus === "acknowledged" ? (
+                      <p className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-[#40574e]">
+                        <FileCheck2 aria-hidden="true" className="size-4 text-[#b35f35]" />
+                        Evidence recorded
+                      </p>
+                    ) : row.waiver_acknowledgement_method === "organizer_recorded" ? (
+                      row.waiver_status === "approved" ? (
+                        canRecordWaiverEvidence ? (
+                          <form action={evidenceFormAction} className="mt-3 max-w-md">
+                            <input name="eventId" type="hidden" value={eventId} />
+                            <input
+                              name="registrationId"
+                              type="hidden"
+                              value={row.registration_id}
+                            />
+                            <label
+                              className="text-sm font-semibold text-[#40574e]"
+                              htmlFor={`evidence-reference-${row.registration_id}`}
+                            >
+                              Evidence reference
+                            </label>
+                            <Input
+                              aria-describedby={`evidence-reference-help-${row.registration_id}`}
+                              className="mt-2 bg-[#f8f6f0]"
+                              disabled={isEvidencePending}
+                              id={`evidence-reference-${row.registration_id}`}
+                              maxLength={600}
+                              name="evidenceReference"
+                              required
+                            />
+                            <p
+                              className="mt-2 text-xs leading-5 text-[#71847b]"
+                              id={`evidence-reference-help-${row.registration_id}`}
+                            >
+                              Enter the approved reference for the signed form. Do not enter form contents.
+                            </p>
+                            <Button
+                              className="mt-3 bg-[#19352d] text-[#f3f0e8] hover:bg-[#b35f35]"
+                              disabled={isEvidencePending}
+                              size="sm"
+                              type="submit"
+                            >
+                              <FileCheck2 aria-hidden="true" className="size-4" />
+                              {isEvidencePending ? "Recording..." : "Record evidence"}
+                            </Button>
+                          </form>
+                        ) : (
+                          <p className="mt-2 text-sm leading-6 text-[#71847b]">
+                            Evidence can be recorded after the registration is confirmed.
+                          </p>
+                        )
+                      ) : (
+                        <p className="mt-2 text-sm leading-6 text-[#9a432d]">
+                          This assigned waiver is not approved for recording.
+                        </p>
+                      )
+                    ) : row.waiver_acknowledgement_method === "built_in" ? (
+                      <p className="mt-2 text-sm leading-6 text-[#71847b]">
+                        The member must complete the in-portal acknowledgement.
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm leading-6 text-[#71847b]">
+                        Completion is handled through the approved external workflow.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               {canRecord ? (
