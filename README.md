@@ -4,6 +4,62 @@ The University of Calgary Outdoor Adventurers (UCOA) website will replace the cl
 
 The repository contains the planning source of truth plus the initial Next.js and Supabase implementation, including membership, event authorization, private Storage policy slices, RSVP transactions, a public event calendar, manager-scoped attendance recording, bounded recurring event generation, protected per-instance editing, organizer publishing with executive moderation, versioned waiver acknowledgement, private waiver PDF delivery, and organizer-recorded evidence references. The implementation source of truth is [docs/planning/PLAN.md](docs/planning/PLAN.md).
 
+## Minimal demo setup
+
+The repository includes an opt-in synthetic demo seed at `supabase/demo-seed.sql` for a small public calendar, member-only event details, organizer scope, and an approved built-in waiver flow. The fixtures contain no real member data and are intended only for local development or a separate demo Supabase project. The default `supabase/seed.sql` remains empty so isolated database tests keep deterministic fixture counts.
+
+### Windows and Docker Desktop
+
+The demo uses Docker Desktop's Linux engine to run the local Supabase PostgreSQL, API, Auth, Storage, and Studio services. Configure Docker Desktop once before running the script:
+
+1. Install Docker Desktop for Windows with the WSL 2 backend.
+2. Open Docker Desktop **Settings > General** and enable **Use the WSL 2 based engine**.
+3. Open **Settings > Resources > WSL Integration** and enable the Linux distribution used by your terminal, usually Ubuntu.
+4. Confirm Docker is using Linux containers. If the Docker Desktop tray menu offers **Switch to Linux containers**, select it. If it offers **Switch to Windows containers**, it is already configured correctly.
+5. Start Docker Desktop and wait until it reports that the engine is running.
+
+If WSL 2 is not installed, run `wsl --install` in an Administrator PowerShell window, restart Windows when prompted, and then start Docker Desktop again. Verify the engine from PowerShell with:
+
+```powershell
+docker info
+```
+
+The command must complete successfully before `run-demo.bat` can start Supabase. If it reports that it cannot connect to the Docker daemon, Docker Desktop is not ready or is using the wrong container mode.
+
+### Configure local Supabase
+
+From the repository root, create `.env.local`, start Supabase once to obtain the local public values, and then set only these two variables:
+
+```powershell
+Copy-Item .env.example .env.local
+npx --yes supabase start
+npx --yes supabase status
+```
+
+In `.env.local`, use the local API URL and the `PUBLISHABLE_KEY` shown by `supabase status`:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<local publishable key>
+```
+
+Do not copy `SECRET_KEY`, `SERVICE_ROLE_KEY`, or `JWT_SECRET` into `NEXT_PUBLIC_*` variables or commit them. The batch script checks that the URL is local and that the publishable-key placeholder has been replaced.
+
+For local development, run `run-demo.bat` from the repository root. In PowerShell use `.\run-demo.bat`; in Git Bash use `cmd.exe /c run-demo.bat`; or double-click the file in Explorer. The script resets the local database, applies migrations, loads `supabase/demo-seed.sql` through the local Postgres container, and starts Next.js at `http://localhost:3000`. It changes only the local Supabase project; the reset removes existing local database data. Supabase Studio at `http://127.0.0.1:54323` is optional for inspecting data; the script loads the demo seed automatically.
+
+The equivalent manual steps are:
+
+1. Install dependencies with `npm install`.
+2. Copy `.env.example` to `.env.local` and set the local Supabase URL and publishable key printed by `supabase start`.
+3. Start the local stack with `npx --yes supabase start`.
+4. Apply migrations with `npx --yes supabase db reset --local --yes`.
+5. Load the synthetic demo records by running `supabase/demo-seed.sql` in local Supabase Studio at `http://127.0.0.1:54323` or with `psql` against the local database URL.
+6. Start Next.js with `npm run dev` and open `/` or `/events`.
+
+Run `npm test` only after another clean `npx --yes supabase db reset --local --yes` and before loading the demo seed; the opt-in demo rows are intentionally separate from the isolated pgTAP fixtures. Docker Desktop must remain running for both the local database-backed demo and `npm test`. It is not needed for a static Next.js build or a hosted Supabase project.
+
+For a hosted demo, use a separate Supabase project, apply the migrations, run the opt-in `supabase/demo-seed.sql` in that project, and add the two public Supabase variables to the Vercel deployment. The seeded Auth identities are database fixtures rather than published login credentials; set a password for one synthetic user through the Supabase Auth admin UI, or create a separate non-production account and link it to demo profile/membership rows before showing protected pages. Never commit demo credentials, and do not run the fixture seed against production data.
+
 ## Product goal
 
 Give UCOA one controlled place to:

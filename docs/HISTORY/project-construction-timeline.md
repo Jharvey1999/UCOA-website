@@ -131,6 +131,13 @@ This document records major planning, implementation, migration, testing, and la
 - Uploaded the exact source binaries to the local private bucket and verified both objects by byte count and SHA-256 round trip. This does not upload them to production or approve either form.
 - **Open items:** UCOA must confirm current wording, provincial/national event applicability, completion evidence ownership and retention, production private object upload, and final approval before either form can be assigned to a production event.
 
+## New 2026/2027 waiver source - September 9, 2026
+
+- Recorded the newly supplied two-page `2026-2027-club-approved-activities` waiver metadata and canonical private object path in a reproducible migration. The supplied local PDF is 63,392 bytes with SHA-256 `2EF5BD85B0B7AA4735ADC58FE9CDEA1393909E6BDBBB858F0F800F61B18D6FC6`.
+- Mapped the source to `organizer_recorded` as an implementation assumption because the text includes participant and parent/legal-guardian signature fields.
+- Kept the record as `draft` with no event assignment, approval actor, approval timestamp, or uploaded binary. The PDF is present in the source inventory but still needs private Storage upload and UCOA approval.
+- Added focused coverage proving anonymous users and active members cannot read the unapproved waiver metadata.
+
 ## Planned milestones
 
 ## Phase 6 migration and pilot kickoff - August 31, 2026
