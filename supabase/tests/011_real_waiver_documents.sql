@@ -109,7 +109,7 @@ values
     'd0000000-0000-0000-0000-000000000003',
     '{"mimetype":"application/pdf","size":59708}'::jsonb
   )
-on conflict (bucket_id, name) do update
+on conflict (bucket_id, name) where archived_at is null do update
 set owner_id = excluded.owner_id,
     metadata = excluded.metadata;
 

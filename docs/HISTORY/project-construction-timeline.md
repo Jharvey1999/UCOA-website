@@ -8,7 +8,7 @@ This document records major planning, implementation, migration, testing, and la
 - The product goal is to replace the UCOA club's core Meetup workflows with a private responsive portal.
 - The agreed MVP stack is Next.js App Router, the official Supabase `with-supabase` starter, Supabase Auth/Postgres/Storage, and Vercel.
 - A separate Python backend is deferred.
-- The Google Sheet is a one-time migration source; Supabase will become authoritative after verification.
+- Google Drive remains the authoritative member master; Supabase stores website accounts and operational access.
 - MVP roles are active member, organizer, and executive.
 - The current Meetup group is private, with member-only event details, locations, attendee information, and media.
 - The current public source inventory includes Meetup, Instagram, Campsite.bio, Discord, Jotform, Google Forms, communal gear, and contact email.
@@ -138,14 +138,21 @@ This document records major planning, implementation, migration, testing, and la
 - Kept the record as `draft` with no event assignment, approval actor, approval timestamp, or uploaded binary. The PDF is present in the source inventory but still needs private Storage upload and UCOA approval.
 - Added focused coverage proving anonymous users and active members cannot read the unapproved waiver metadata.
 
+## Directory master, executive exports, and signed waivers - September 21, 2026
+
+- Replaced the planned Google Drive-to-Supabase membership migration and cutover with the executive-approved operating model: Google Drive remains the canonical member master, while Supabase stores website accounts, access decisions, event operations, and waiver records.
+- Added profile and directory fields for website signup, including contact, student, affiliation, and consented emergency-contact metadata; website accounts still begin with pending access.
+- Added executive-only, claims-validated, filtered Excel export with database authorization, row-count audit records, and no server-side retention. The intended reconciliation path is manual executive review and copy/paste into the Google Drive master.
+- Added the separate private signed-waiver workflow: approved blank-PDF download, active-member signed-PDF submission/replacement, personal retrieval, executive review status transitions, and bounded executive bulk ZIP download with recorded metadata and Storage path ownership checks.
+- Added structural PDF parsing, restricted owner-only Storage reads, server-only executive binary downloads, bounded export listing, service-role-bound export audits, race-safe review transitions, and an explicit audited orphan cleanup workflow for replaced or deleted-account PDFs. `npm run lint`, `npm run typecheck`, and `npm run build` pass; database execution remains blocked until Docker Desktop's Linux engine is available.
+- **Open items:** name the directory/export owners, approve the downloaded-file and signed-document retention cutoffs, approve the final waiver wording and review workflow, and run the newest database suite locally.
+
 ## Planned milestones
 
-## Phase 6 migration and pilot kickoff - August 31, 2026
+## Retired Phase 6 migration planning - August 31, 2026
 
-- Started Phase 6 as planning and sanitized rehearsal only; no real source export, production import, account-claim batch, or cutover is authorized.
-- Added [docs/planning/phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md) with source authority, reviewed mapping, prohibited-field, dry-run, reconciliation, upcoming-event, pilot, and exit requirements.
-- Updated the membership migration plan and README to identify the Phase 6 handoff and its executive/data-owner prerequisites.
-- **Open items:** name the data owner and backup owner, approve source authority and retention, provide an approved sanitized sample, resolve field and membership-year decisions, complete Phase 5 approval, and assign parallel-calendar and cutover owners.
+- The earlier migration-and-pilot plan was documentation-only and is superseded by the September 21 Google Drive master and on-demand export decision.
+- The retained [phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md) now documents the replacement reconciliation and signed-waiver operating model.
 
 ### 1. Decisions and ownership
 
@@ -191,14 +198,14 @@ This document records major planning, implementation, migration, testing, and la
 - Build organizer publishing, capacity, waitlist, cancellation, waiver status, and attendance.
 - Add transaction tests for concurrent RSVP and promotion.
 
-### 6. Migration rehearsal
+### 6. Directory reconciliation and executive exports
 
-**Status:** not started
+**Status:** in progress
 
-- Obtain a sanitized sample of the Google Sheet.
-- Run import preview and reconciliation.
-- Confirm no credentials, banking data, or unapproved fields enter the system.
-- Import and verify a small pilot cohort.
+- Name the Google Drive directory owner, export reviewer, and backup owner.
+- Accept the manual copy/paste reconciliation procedure and downloaded-file retention rule.
+- Run the filtered Excel and signed-waiver ZIP workflows with approved operational data.
+- Run the focused database suite when the local Supabase runtime is available.
 
 ### 7. Executive acceptance and member pilot
 
@@ -209,14 +216,14 @@ This document records major planning, implementation, migration, testing, and la
 - Compare membership, calendar, RSVP, and attendance outcomes with Meetup.
 - Record unresolved risks and owners.
 
-### 8. Production cutover
+### 8. Production launch and operations
 
 **Status:** not started
 
 - Configure Vercel and Supabase environments, Auth email delivery, redirects, backups, monitoring, and domain.
 - Complete deployed privacy/security checks.
-- Run Meetup and UCOA in parallel for the approved period.
-- Announce UCOA as the primary calendar and retain only the approved Meetup transition/archive path.
+- Launch the website as the operational event portal while retaining Google Drive as the member master.
+- Retain Meetup only as the approved external transition/reference path.
 
 ## Entry template
 

@@ -20,7 +20,15 @@ export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [affiliation, setAffiliation] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactConsent, setEmergencyContactConsent] = useState(false);
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +52,16 @@ export function SignUpForm({
         email,
         password,
         options: {
+          data: {
+            affiliation,
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            student_id: studentId,
+            emergency_contact_name: emergencyContactName,
+            emergency_contact_phone: emergencyContactPhone,
+            emergency_contact_consent_to_share: emergencyContactConsent,
+          },
           emailRedirectTo: `${window.location.origin}/protected`,
         },
       });
@@ -66,6 +84,28 @@ export function SignUpForm({
         <CardContent>
           <form onSubmit={handleSignUp}>
             <div className="flex flex-col gap-6">
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="first-name">First name</Label>
+                  <Input
+                    id="first-name"
+                    maxLength={80}
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="last-name">Last name</Label>
+                  <Input
+                    id="last-name"
+                    maxLength={120}
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -77,6 +117,65 @@ export function SignUpForm({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="phone-number">Phone number</Label>
+                  <Input
+                    id="phone-number"
+                    maxLength={40}
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="student-id">Student ID</Label>
+                  <Input
+                    id="student-id"
+                    maxLength={80}
+                    value={studentId}
+                    onChange={(e) => setStudentId(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="affiliation">Affiliation</Label>
+                <Input
+                  id="affiliation"
+                  maxLength={160}
+                  placeholder="University, workplace, or community"
+                  value={affiliation}
+                  onChange={(e) => setAffiliation(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="emergency-contact-name">Emergency contact</Label>
+                  <Input
+                    id="emergency-contact-name"
+                    maxLength={160}
+                    value={emergencyContactName}
+                    onChange={(e) => setEmergencyContactName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="emergency-contact-phone">Emergency contact phone</Label>
+                  <Input
+                    id="emergency-contact-phone"
+                    maxLength={40}
+                    value={emergencyContactPhone}
+                    onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+              <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
+                <input
+                  className="mt-1 size-4"
+                  checked={emergencyContactConsent}
+                  onChange={(e) => setEmergencyContactConsent(e.target.checked)}
+                  type="checkbox"
+                />
+                <span>Allow UCOA to share my emergency contact with approved trip organizers when necessary.</span>
+              </label>
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>

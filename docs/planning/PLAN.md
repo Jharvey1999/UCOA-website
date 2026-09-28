@@ -2,7 +2,7 @@
 
 **Status:** implementation in progress
 
-**Last reviewed:** August 30, 2026
+**Last reviewed:** September 21, 2026
 
 **Product owner:** UCOA executive responsible for construction and operational approval
 
@@ -32,7 +32,7 @@ The replacement must support the patterns visible in the current UCOA community:
 | Hosting | Vercel for Next.js and Supabase-hosted project for data/auth | Matches the requested low-cost deployment model. |
 | Authentication | Supabase email/password with email confirmation and password reset | Simple account recovery and no dependency on a University SSO agreement. |
 | Roles | Active member, organizer, executive | Matches the operational model without granting every organizer administrative access. |
-| Membership authority | Import the legacy Google Sheet once, verify it, then make Supabase authoritative | Avoids a permanent spreadsheet synchronization dependency and makes access auditable. |
+| Membership authority | Google Drive remains the authoritative member master; Supabase stores website accounts, operational access, events, and waiver records | Keeps the executive-owned directory canonical while giving the website a controlled, auditable operational record. Executives reconcile through an on-demand Excel export and manual copy/paste. |
 | Payments | No payment processor or bank credential collection | The website may show approved e-transfer instructions and record verification metadata only. |
 | External integrations | Links and manual workflows at launch | Reduces integration risk while preserving the current club channels. |
 | Mobile | Responsive web and PWA-friendly behavior | Covers phones without a separate native application in the first release. |
@@ -52,7 +52,7 @@ The replacement must support the patterns visible in the current UCOA community:
 7. Public event summaries and member-only descriptions/locations.
 8. Active-member RSVP, cancellation, waitlist promotion, and registration status.
 9. Organizer tools limited to hosted events.
-10. Executive tools for membership, roles, events, settings, imports, safe exports, and audit logs.
+10. Executive tools for membership, roles, events, settings, on-demand directory exports, signed-waiver downloads, and audit logs.
 11. Private profile photos and controlled access through Supabase Storage.
 12. Versioned waiver records, private document references, and an approved interim completion/status workflow.
 13. Database migrations, RLS policy tests, RSVP transaction tests, and responsive acceptance checks.
@@ -103,13 +103,13 @@ The site must use UCOA-owned or explicitly licensed images. Meetup or Instagram 
 
 The application must never collect bank logins, passwords, card details, or unnecessary identity data.
 
-### Imported member
+### Existing directory member
 
-1. Executive uploads a reviewed CSV export through an executive-only dry-run/import flow.
-2. The system normalizes values, reports duplicates and missing identifiers, and previews changes.
-3. Executive verifies each mapping and chooses which records to import.
-4. Imported records begin as `needs_verification` unless reliable dates and status are available.
-5. The system sends an account-claim or password-reset invitation only after the email/person mapping is verified.
+1. A person creates a website account and supplies the approved profile and application fields.
+2. The account starts as pending and receives no member-only access.
+3. An executive verifies the person and manages the website membership/access record in Supabase.
+4. The executive generates an on-demand Excel export when the Google Drive master needs website-account or operational updates.
+5. The executive manually reviews and copies approved values into the Google Drive master; the website does not bulk-import or silently overwrite the master.
 
 ### Member event participation
 
@@ -126,7 +126,7 @@ Organizers can draft, publish, edit, duplicate, cancel, and manage only events t
 
 ### Executive administration
 
-Executives can review applications, update membership years, assign roles, manage all events, edit external links, preview imports, export safe reports, inspect audit logs, and revoke access by expiry or suspension.
+Executives can review applications, update website membership years, assign roles, manage all events, edit external links, export the member directory, review and download signed waiver PDFs, inspect audit logs, and revoke access by expiry or suspension.
 
 ## 6. Technical architecture
 
@@ -181,7 +181,7 @@ The first schema should include these entities. Names are provisional until the 
 | Entity | Purpose |
 | --- | --- |
 | `profiles` | Auth-linked display name, first name, last-name initial, affiliation, profile photo path, contact preferences, and timestamps. |
-| `memberships` | Membership year, lifecycle status, approval metadata, safe payment verification metadata, and legacy import reference. |
+| `memberships` | Website membership year, lifecycle status, approval metadata, and safe payment verification metadata; it does not replace the Google Drive member master. |
 | `user_roles` | Executive-assigned `member`, `organizer`, or `executive` role. |
 | `event_series` | Bounded recurring-event definition and timezone. |
 | `events` | Explicit event instance, public/member content, schedule, location policy, activity type, difficulty, capacity, status, waiver reference, and series reference. |
@@ -226,24 +226,21 @@ RSVP and waitlist operations must use a server-side database transaction or stor
 
 Attendee identity visibility is a product decision and defaults to private. Show only the minimum member information approved by the executive.
 
-## 10. Migration and cutover
+## 10. Google Drive master and operational export
 
-The Google Sheet and Meetup are migration sources, not permanent application dependencies. See [docs/membership/members-list-plan.md](../membership/members-list-plan.md) and [docs/legacy/oldwebsite-meetup.md](../legacy/oldwebsite-meetup.md).
+Google Drive remains the authoritative member master. Supabase stores website accounts, website membership/access decisions, event operations, and waiver records; it is not a replacement master directory and it does not receive a bulk import from Google Drive.
 
-### Migration sequence
+### Operating sequence
 
-1. Name a data owner and confirm executive authority to import the sheet.
-2. Inventory columns, row count, duplicate rules, date interpretation, missing-email policy, and consent/retention requirements without placing the source export in Git.
-3. Produce a sanitized sample and dry-run report.
-4. Normalize email and name values and detect duplicates before writes.
-5. Import only approved fields into a recorded import batch.
-6. Mark uncertain rows `needs_verification`; do not grant access because a row exists.
-7. Send account-claim invitations only after identity mapping is verified.
-8. Manually recreate or import only authorized upcoming events.
-9. Run Meetup and UCOA in parallel for a short pilot period.
-10. Publish UCOA as the primary calendar and retain Meetup only as a read-only transition reference.
+1. The executive-owned Google Drive spreadsheet remains the canonical directory and is maintained through its existing controlled process.
+2. A person creates a website account and supplies only the profile, contact, student, affiliation, and emergency-contact fields approved for the website.
+3. An executive verifies the account and manages its website membership status, role, payment-verification metadata, and operational flags in Supabase.
+4. An executive generates a filtered Excel workbook from Supabase on demand. The export is not stored in the website after download and every request is audited.
+5. The executive manually reviews and copies approved website values into the Google Drive master. Student ID, email, and names are reconciliation aids, not automatic merge keys.
+6. Corrections to the canonical directory happen in Google Drive; corrections to website access and event operations happen in Supabase through their authorized workflows.
+7. Meetup remains a transition reference for event history and external discovery, not a membership database or synchronization target.
 
-Do not scrape private Meetup content or copy member photos without explicit authorization. Historical event migration is optional and out of the first cutover.
+Do not scrape private Meetup content, copy private member media, add a Google Drive import, or create a background synchronization job without a new executive decision.
 
 ## 11. Implementation phases
 
@@ -252,9 +249,9 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 - Confirm executive owner, operational contacts, approved public copy, branding assets, canonical Discord invite, and external forms.
 - Approve membership lifecycle and the data retention/consent rules.
 - Approve waiver wording and completion workflow before outdoor RSVP.
-- Inventory and sanitize the Google Sheet.
+- Confirm that Google Drive remains the authoritative member master and define the manual export/reconciliation owner.
 
-**Exit check:** written decisions exist for identity, membership authority, waiver enforcement, external links, and migration ownership.
+**Exit check:** written decisions exist for identity, directory authority, export/reconciliation ownership, waiver enforcement, and external links.
 
 ### Phase 2 - Foundation
 
@@ -273,7 +270,7 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 - Generate typed database definitions.
 - Add pgTAP tests for each exposed table and role scenario.
 
-**Progress:** The membership, event authorization, private Storage, RSVP, attendance, recurring-generation, per-instance editing, event-status, and organizer-recorded waiver evidence migrations and pgTAP suites cover date-bounded membership states, executive-only metadata, trusted roles, public-safe event columns, private event details, bounded series, host-scoped organizer access, path-scoped profile/event media, audit records, grants, RLS, transactional capacity/waitlist behavior, concurrent final-slot protection, manager-scoped attendee rosters, audited attendance transitions, idempotent daily/weekly/monthly instance generation, local-time and DST preservation, max-instance bounds, safe template copying, manager-scoped atomic instance edits, local-time input conversion, immutable series links, host/executive publishing and moderation, direct status-update denial, valid status transitions, registration closure when events are cancelled, approved waiver assignment, private PDF references, signed document access, and host/executive recording of opaque evidence references. The Storage migration now leaves Supabase-managed table ownership and grants intact, compares managed text owner IDs correctly, preserves owner immutability through RLS, and protects waiver PDF objects with assignment-scoped policies. Local migration and pgTAP execution passes with 513 assertions across twelve suites. Generated database types, production artifact upload, and broader workflow/UI scenarios remain.
+**Progress:** The membership, event authorization, private Storage, RSVP, attendance, recurring-generation, per-instance editing, event-status, waiver evidence, member-directory export, and signed-waiver migrations and pgTAP suites cover date-bounded membership states, executive-only metadata, trusted roles, public-safe event columns, private event details, bounded series, host-scoped organizer access, path-scoped profile/event media, audit records, grants, RLS, transactional capacity/waitlist behavior, concurrent final-slot protection, manager-scoped attendee rosters, audited attendance transitions, idempotent daily/weekly/monthly instance generation, local-time and DST preservation, max-instance bounds, safe template copying, manager-scoped atomic instance edits, local-time input conversion, immutable series links, host/executive publishing and moderation, direct status-update denial, valid status transitions, registration closure when events are cancelled, approved waiver assignment, private PDF references, signed document access, executive-only Excel and ZIP exports, active-membership boundaries, and export audit records. Local execution of the newest migration/test suite is pending because the Docker-backed Supabase database is unavailable. Generated database types, production artifact upload, and broader workflow/UI scenarios remain.
 
 **Exit check:** local migrations and RLS tests pass, including anonymous, pending, active-member, organizer, and executive cases.
 
@@ -299,7 +296,7 @@ Do not scrape private Meetup content or copy member photos without explicit auth
 
 **Exit check:** the last-slot race, waitlist promotion, cancellation, event cancellation, and organizer scope tests pass.
 
-**Waiver slice (August 30, 2026):** Approved waiver metadata, event assignment, acknowledgement status, member acknowledgement, and waiver-aware registration gating are implemented. The protected event editor includes an approved-waiver selector, and the standalone legacy waiver checkbox has been reconciled so ordinary event edits preserve unresolved legacy requirements. The member event page offers the built-in acknowledgement control without embedding legal wording and explains when an external or organizer-recorded workflow cannot be completed in the portal. The protected attendance roster now records an opaque evidence reference for an approved assigned `organizer_recorded` waiver through a host/executive RPC; it does not upload signed evidence or choose retention policy. The supplied 2025-2026 provincial and national PDFs are inventoried as draft organizer-recorded versions, protected by a private Storage bucket and an authenticated event-scoped signed-URL route. Positive member, organizer, and executive browser workflows plus test-backed authorization boundaries are recorded in [phase-5-acceptance.md](phase-5-acceptance.md); Phase 5 remains in progress until the full authenticated responsive review, production object upload, and UCOA approval of the final wording and workflow are complete.
+**Waiver slice (August 30, 2026):** Approved waiver metadata, event assignment, acknowledgement status, member acknowledgement, and waiver-aware registration gating are implemented. The protected event editor includes an approved-waiver selector, and the standalone legacy waiver checkbox has been reconciled so ordinary event edits preserve unresolved legacy requirements. The member event page offers the built-in acknowledgement control without embedding legal wording and explains when an external or organizer-recorded workflow cannot be completed in the portal. The protected attendance roster records an opaque evidence reference for an approved assigned `organizer_recorded` waiver through a host/executive RPC. The newer member waiver centre supports an approved blank-PDF download, active-member signed-PDF submission, personal retrieval, and executive ZIP export; the supplied source remains unapproved until UCOA confirms the wording and workflow. Positive member, organizer, and executive browser workflows plus test-backed authorization boundaries are recorded in [phase-5-acceptance.md](phase-5-acceptance.md); Phase 5 remains in progress until the full authenticated responsive review, production object upload, and UCOA approval of the final wording and workflow are complete.
 
 ### RSVP handoff - August 29, 2026 (resolved August 30, 2026)
 
@@ -315,25 +312,25 @@ The RSVP review fixes in [supabase/migrations/20260829030000_event_registrations
 
 Runtime validation: `npx --yes supabase db reset --local --yes` applies all eight migrations and the seed, and `npm test` passes all nine pgTAP suites (360 assertions) as of August 30, 2026. `npm run lint`, `npm run typecheck`, and `npm run build` also pass. The local stack remains available at the configured local ports while Docker Desktop is running.
 
-### Phase 6 - Migration and pilot
+### Phase 6 - Directory reconciliation and executive exports
 
-**Status:** in progress (planning and sanitized rehearsal only; kickoff August 31, 2026)
+**Status:** implementation in progress (export and signed-waiver workflows added September 21, 2026)
 
-**Progress:** The migration-and-pilot boundary, reviewed mapping requirements, dry-run controls, pilot scope, blockers, and exit criteria are recorded in [phase-6-migration-pilot.md](phase-6-migration-pilot.md). No real export, production import, account-claim batch, or cutover is authorized yet.
+**Progress:** Google Drive remains the canonical member master. The website now supports account/profile capture, executive-controlled website access, bounded filtered on-demand Excel export, audited export requests, approved waiver PDF download, structurally parsed active-member signed-PDF submission and replacement, executive review status transitions, bounded executive signed-PDF ZIP export, and explicit audited cleanup for unreferenced signed PDFs. No Google Drive import, account-claim batch, background synchronization, or authority cutover is planned.
 
-- Build import preview and audit-safe export.
-- Rehearse with sanitized membership data.
-- Recreate upcoming events and verify private locations.
-- Run an executive acceptance pass and a small member pilot.
+- Confirm the exact Google Drive reconciliation owner and manual copy/paste procedure.
+- Run the executive export and signed-waiver workflows with synthetic or approved operational data.
+- Complete the focused pgTAP suite when the local Supabase database is available.
+- Obtain UCOA approval for the final waiver document, upload, and status-review workflow.
 
-**Exit check:** migration reports reconcile, pilot feedback is recorded, and cutover risks have owners. The Phase 6 acceptance checklist must pass before Supabase becomes authoritative.
+**Exit check:** the manual reconciliation procedure is accepted, executive-only exports are audited, active/pending/expired/cross-user boundaries pass, and the waiver document workflow has an approved owner and retention decision.
 
-### Phase 7 - Production cutover
+### Phase 7 - Production launch and operations
 
 - Configure Supabase and Vercel environments separately.
 - Configure Auth redirects, email templates, backups, monitoring, and custom domain.
 - Run the privacy/security deployment pass.
-- Announce the new primary calendar and maintain the agreed Meetup transition period.
+- Launch the website as the operational event portal while retaining Google Drive as the member master and Meetup only as the approved external transition/reference path.
 
 **Exit check:** production acceptance checklist is signed by the executive owner.
 
@@ -345,7 +342,7 @@ Every feature slice must run the narrowest relevant check before more work is ad
 - `supabase test db` for local migrations and pgTAP RLS tests.
 - Playwright coverage for public, pending, active-member, organizer, and executive journeys.
 - Database tests for concurrent final-slot RSVP, duplicate requests, cancellation/rejoin, waitlist promotion, and event cancellation.
-- Migration rehearsal with row-level inserted/updated/rejected counts and no credentials or banking data.
+- Executive export rehearsal with filtered row counts, audit records, no credentials or banking data, and a documented manual reconciliation check.
 - Preview deployment test for guessed IDs, cache behavior, signed media URLs, service-key exposure, and safe error responses.
 - Responsive checks at phone, tablet, and desktop widths, including long titles, multi-day events, DST transitions, and keyboard navigation.
 
@@ -354,7 +351,7 @@ Every feature slice must run the narrowest relevant check before more work is ad
 | Decision or risk | Owner/action before launch |
 | --- | --- |
 | Waiver legal text and signing method | Executive obtains approved wording and selects built-in, external, or organizer-recorded completion. |
-| Google Sheet ownership and data quality | Executive names data owner and approves a sanitized dry run. |
+| Google Drive ownership and reconciliation | Executive names the directory owner, export reviewer, and manual copy/paste procedure. |
 | Emergency contact necessity and retention | Executive confirms purpose, access, retention, and whether the field should be imported or collected anew. |
 | Canonical Discord invite | Verify the current invite and update executive-managed settings. |
 | Public attendee visibility | Executive approves the minimum member information shown to other members. |

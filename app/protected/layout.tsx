@@ -28,6 +28,9 @@ export default function ProtectedLayout({
             <Link className="text-[#557268] transition-colors hover:text-[#19352d]" href="/events">
               Events
             </Link>
+            <Link className="text-[#557268] transition-colors hover:text-[#19352d]" href="/protected/waivers">
+              Waivers
+            </Link>
             {!hasEnvVars ? (
               <EnvVarWarning />
             ) : (

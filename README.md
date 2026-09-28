@@ -82,7 +82,7 @@ The first release is a core Meetup replacement. Courses, insurance documents, pr
 | Hosting | Vercel for the Next.js application; Supabase-hosted project for data and auth |
 | Authentication | Supabase email/password authentication with email confirmation and password reset |
 | Roles | Active member, organizer, and executive |
-| Membership source of truth | Controlled one-time import from the legacy Google Sheet, then Supabase |
+| Membership source of truth | Google Drive remains the authoritative member master; Supabase stores website accounts and operational access |
 | Payments | No payment processor and no bank credentials; show approved e-transfer instructions and record verification metadata only |
 | External integrations | Links and manual workflows for Discord, Instagram, forms, gear, and contact email at launch |
 | Waivers | Store versioned metadata and private document references; keep the supplied 2025-2026 forms in draft until UCOA approves the wording and completion workflow |
@@ -107,7 +107,7 @@ Events support one-off and bounded recurring instances, explicit start and end t
 
 ### Administration
 
-Executives approve members, assign organizer roles, manage all events and settings, review registrations and attendance, run a previewable legacy import, export safe reports, and review the audit log. Organizers can manage only events they host and cannot grant themselves privileges.
+Executives approve website members, assign organizer roles, manage all events and settings, review registrations and attendance, generate on-demand directory Excel exports, review signed-waiver submissions, download signed-waiver PDFs as a bounded ZIP, clean up unreferenced signed PDFs after an approved cutoff, and review the audit log. Organizers can manage only events they host and cannot grant themselves privileges.
 
 ## Security and privacy
 
@@ -122,11 +122,11 @@ Security is a product requirement, not a later hardening task. The complete mode
 - Audit membership approvals, role changes, imports, exports, RSVP overrides, and destructive actions.
 - Do not copy private Meetup content or member media without authorization.
 
-## Migration boundary
+## Membership data boundary
 
-Meetup remains a transition reference and optional archive, not a live synchronization dependency. The migration will use an executive-reviewed export of the legacy Google Sheet and manually recreate or import only authorized upcoming events. Legacy rows without a verified mapping or reliable membership dates remain `needs_verification`; they do not automatically receive access.
+Google Drive remains the authoritative member master. Supabase stores website accounts, profiles, membership/access decisions, event operations, and waiver records; it does not import or synchronize the Google Drive spreadsheet. Executives generate a filtered Excel workbook on demand, review it, and manually copy approved values into the Google Drive master. Export requests are executive-only, database-authorized, audited, and not retained by the website.
 
-Phase 6 migration and pilot planning is in progress, with sanitized rehearsal as the only current scope. See [docs/planning/phase-6-migration-pilot.md](docs/planning/phase-6-migration-pilot.md), [docs/membership/members-list-plan.md](docs/membership/members-list-plan.md), and [docs/legacy/oldwebsite-meetup.md](docs/legacy/oldwebsite-meetup.md) for the migration rules and observed source behavior.
+Meetup remains a transition reference and optional archive for event discovery, not a membership database or synchronization target. See [docs/planning/phase-6-migration-pilot.md](docs/planning/phase-6-migration-pilot.md), [docs/membership/members-list-plan.md](docs/membership/members-list-plan.md), and [docs/legacy/oldwebsite-meetup.md](docs/legacy/oldwebsite-meetup.md) for the operating boundary and observed source behavior.
 
 ## External sources
 
@@ -145,9 +145,9 @@ The current public Meetup and Campsite.bio pages showed the Discord invite `http
 3. Add reproducible Supabase migrations, typed database definitions, seed fixtures, and RLS tests.
 4. Build authentication, profile/application onboarding, membership status, and public discovery.
 5. Build events, recurring instances, member-only detail visibility, RSVP, waitlists, cancellation, and attendance.
-6. Build organizer and executive workflows, audit logging, safe settings, and import preview.
-7. Rehearse the sanitized membership migration and upcoming-event cutover.
-8. Pilot with executives and a small member group, run the security and acceptance checks, then make the new calendar primary.
+6. Build organizer and executive workflows, audit logging, safe settings, directory export, and signed-waiver administration.
+7. Rehearse manual directory reconciliation and upcoming-event operations with synthetic or approved operational data.
+8. Pilot with executives and a small member group, run the security and acceptance checks, then launch the website while retaining Google Drive as the member master.
 
 ## Definition of done for the MVP
 
@@ -155,7 +155,7 @@ The current public Meetup and Campsite.bio pages showed the Discord invite `http
 - An approved active member can sign in, view authorized event details, RSVP, cancel, and be promoted from a waitlist.
 - A pending or expired account cannot RSVP or read member-only event details.
 - An organizer can manage only their hosted events.
-- An executive can approve membership, assign roles, manage content, run a dry-run import, and inspect audit entries.
+- An executive can approve website membership, assign roles, manage content, generate an audited directory export, review and download signed waivers, and inspect audit entries.
 - Database-level tests cover grants, RLS isolation, role escalation denial, Storage access, and RSVP concurrency.
 - The app passes lint, typecheck, tests, and production build checks and works at phone, tablet, and desktop widths.
 

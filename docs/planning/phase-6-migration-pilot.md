@@ -1,16 +1,18 @@
-# Phase 6 Migration and Pilot
+# Directory Reconciliation and Executive Export
 
-**Status:** in progress - planning and sanitized rehearsal only
+**Status:** implementation complete; operational acceptance pending
 
-**Started:** August 31, 2026
+**Updated:** September 21, 2026
 
-**Owner:** UCOA executive data owner (to be named)
+**Owner:** UCOA executive directory owner (to be named)
 
-This phase covers the controlled membership migration rehearsal, authorized upcoming-event recreation, executive acceptance, and a small member pilot. It does not authorize a production import or cutover. The Google Sheet and Meetup remain external sources until UCOA approves the transition.
+The earlier Google Drive-to-Supabase migration and cutover plan is retired. Google Drive remains the authoritative member master. This document records the replacement operating model: Supabase manages website accounts and operational access, and executives generate an on-demand export for manual reconciliation with the Google Drive master.
+
+No Google Drive import, account-claim batch, background synchronization, or membership authority cutover is part of this scope. Meetup remains an external event-history and discovery reference, not a membership source.
 
 ## Phase 5 dependency
 
-Phase 5 is not closed. Phase 6 technical rehearsal may use synthetic or sanitized fixtures, but it must not bypass these outstanding requirements:
+Phase 5 is not closed. The export and waiver workflows must not bypass these outstanding requirements:
 
 - Complete the authenticated event-detail, waiver, RSVP, cancellation, and error-state review at phone, tablet, and desktop widths.
 - Record UCOA approval of the final waiver wording, completion method, evidence owner, retention, acceptance date, and unresolved risks.
@@ -18,87 +20,83 @@ Phase 5 is not closed. Phase 6 technical rehearsal may use synthetic or sanitize
 
 See [phase-5-acceptance.md](phase-5-acceptance.md) for the controlling checklist.
 
-## Workstream 1: Source authority
+## Workstream 1: Google Drive master
 
-Before requesting or handling an export, record:
+Before downloading or reconciling an export, record:
 
-- The executive authority and data owner, including a backup owner.
-- The source owner, permitted purpose, export date, and expected row count.
-- The source columns that are in scope and the retention/deletion date.
-- Whether the export may be used for rehearsal, pilot, and production cutover.
+- The executive directory owner and backup owner.
+- The permitted export purpose and the retention/deletion rule for downloaded workbooks.
+- The exact Google Drive headers and the manual copy/paste procedure.
+- The people authorized to review emergency-contact and signed-waiver fields.
 
-No real member export belongs in Git, chat, logs, or local fixtures. Use synthetic data or an approved sanitized sample until these decisions are recorded.
+No real member export belongs in Git, chat, logs, or local fixtures. Use synthetic data for automated tests and keep operational downloads in the approved executive workspace.
 
-## Workstream 2: Reviewed mapping
+## Workstream 2: Website account and access record
 
-The mapping must be approved before import code or writes are enabled.
+Supabase is the website operational record. It is not a copy of the Google Drive master and it does not grant access merely because a person appears in Drive.
 
-| Source value | Rehearsal destination | Rule |
+| Website value | Operational use | Rule |
 | --- | --- | --- |
-| Email | Normalized staging identity key | Normalize case and whitespace; missing or duplicate values go to review. |
-| First name | `profiles.first_name` | Validate and preserve only the approved identity field. |
-| Last name or initial | `profiles.last_name_initial` | Store the minimum display identity required by UCOA. |
-| Membership year | `memberships.membership_year_start` and `membership_year_end` | Validate the September-to-August convention selected by the executive. |
-| Membership status or payment indicator | Membership status plus safe verification metadata | Never infer `active` from an unreviewed value. |
-| Legacy row reference | Restricted membership/import audit reference | Preserve for reconciliation; do not expose it to members. |
+| Account email and name | Website identity and executive reconciliation | Capture through Auth/signup and validate before granting access. |
+| Student ID and affiliation | Website profile and export fields | Collect only for the approved purpose and retention period. |
+| Membership year and status | Website event authorization | Active access requires an in-range active membership, not a Drive row alone. |
+| Payment verification | Safe executive metadata | Store verification state only; never store banking credentials. |
+| Emergency contact | Restricted website safety field | Require approved purpose, consent, access, and retention. |
 
-UCID, emergency-contact details, passwords, banking data, card data, and unapproved free-text notes are excluded by default. Affiliation, profile photos, payment verification metadata, import-batch tracking, and any additional fields require an approved purpose, access policy, and retention rule before use.
+Passwords, banking data, card data, and unapproved free-text notes are excluded. Additional fields require an approved purpose, access policy, and retention rule.
 
-## Workstream 3: Dry run and reconciliation
+## Workstream 3: On-demand Excel export
 
-The rehearsal must produce a report without writing member access or sending claim mail. The report must separate:
+The executive export route and database RPC:
 
-- Inserts, updates, unchanged rows, rejected rows, deferred rows, duplicates, and missing identifiers.
-- Invalid dates, unsupported statuses, ambiguous identity matches, and prohibited fields.
-- Source count, destination count, and every difference with a reason.
-- A deterministic batch/reference identifier and safe audit counts without raw personal data.
+- Require validated Supabase claims and an executive role.
+- Require an explicit confirmation parameter in addition to the UI checkbox.
+- Apply status, role, search, and signed-waiver filters in the database.
+- Generate the approved directory headers plus website-account and operational fields in memory.
+- Return the workbook directly without storing it in Supabase or the application.
+- Write an audit record containing filter context and row count, never the exported member payload.
 
-The import design must be server-only, executive-authorized, idempotent, safe to retry, and protected by database authorization. Imported memberships begin as `needs_verification` unless the executive confirms identity, eligibility, dates, and status. No passwords are imported.
+The executive reviews the workbook and manually copies approved values into Google Drive. Email, student ID, and names are reconciliation aids and do not trigger an automatic merge or overwrite.
 
-## Workstream 4: Upcoming-event rehearsal
+## Workstream 4: Signed-waiver document operations
 
-Recreate only upcoming events that UCOA authorizes. For each event, verify the public summary, local timezone, start/end time, host, capacity, private description, exact location, waiver state, and registration behavior. Do not scrape or copy private Meetup details, attendee data, profiles, media, or images without authorization.
+The separate waiver workflow:
 
-During the rehearsal, Meetup remains a transition reference. Run both calendars in parallel for the approved period and record discrepancies in event ownership, dates, locations, hosts, RSVP counts, and attendance. Do not make UCOA authoritative until the executive approves the cutover decision.
-
-## Workstream 5: Executive acceptance and member pilot
-
-The pilot cohort must be small, explicitly approved, and limited to people whose identity mapping and participation are authorized. Validate:
-
-- Account claim or signup, email confirmation, membership status, and access denial for pending or expired accounts.
-- Member-only event details, waiver gating, RSVP, cancellation, waitlist promotion, and attendance visibility.
-- Organizer scope for hosted events and executive review of audit records.
-- Reconciliation of membership, upcoming events, registrations, and attendance against the approved source snapshot.
-- Feedback, incidents, corrections, rollback needs, and unresolved risks with named owners.
+- Executives approve a waiver version and make its blank PDF member-downloadable.
+- Active members download the blank PDF and upload a signed PDF through the private `signed-waivers` bucket.
+- The database records one current submission per member and waiver version, resets review state on replacement, and audits changes.
+- Members can retrieve their own recorded signed PDF while authorized; executives can review submissions through approved, rejected, and revoked states, list them, and bulk-download recorded PDFs as a ZIP.
+- Review mutations record the executive actor and timestamp; member Storage updates are denied, and member deletion is limited to an unreferenced upload left by a failed submission.
+- Uploads require PDF MIME metadata, the `%PDF-` file signature, and successful structural parsing; ZIP exports are bounded by file count and aggregate bytes and are audited only after archive generation succeeds.
+- Direct signed-waiver Storage reads are owner-only. Executive binary access goes through claims-validated routes, and export auditing is service-role-only and tied to the listed submission IDs.
+- Executives can explicitly clean up route-owned, unreferenced PDFs older than an approved cutoff through a bounded, audited service-side workflow; this covers replacement leftovers and objects surviving account deletion.
+- The final waiver wording, approval actor, status-review owner, and retention policy remain UCOA decisions.
 
 ## Acceptance checklist
 
-- [x] Phase 6 planning and sanitized-rehearsal boundary is recorded.
-- [ ] Executive authority, data owner, and backup owner are named.
-- [ ] Source export authority, date, row count, purpose, and retention are recorded.
-- [ ] Mapping and field minimization are approved.
-- [ ] Sanitized rehearsal input passes validation without prohibited fields.
-- [ ] Duplicate, missing-email, ambiguous-match, invalid-date, and unsupported-status queues have dispositions.
-- [ ] Dry-run report reconciles all source rows without raw personal data.
-- [ ] Import batch identity, audit counts, retry behavior, correction, and rollback procedures are defined.
-- [ ] Account claims are limited to verified identity mappings and no passwords are imported.
-- [ ] Authorized upcoming events are recreated and private locations are manually verified.
-- [ ] Executive acceptance and a small member pilot pass the access, RSVP, waiver, and attendance checks.
-- [ ] Parallel-calendar results and cutover risks are recorded.
-- [ ] Executive approves Supabase as the authoritative source of truth.
+- [x] Google Drive remains the authoritative member master.
+- [x] Supabase stores website accounts and operational membership/access records without a bulk directory import.
+- [x] Executive-only filtered Excel export is claims-validated, database-authorized, audited, and generated on demand.
+- [x] Signed-waiver upload and executive ZIP export use separate private Storage and metadata authorization.
+- [x] Executive signed-waiver downloads are bounded, route-controlled, and cannot bypass the export audit through direct Storage reads.
+- [x] Replaced or deleted-account orphan PDFs have an explicit bounded cleanup workflow without a hard-coded retention period.
+- [x] Signup captures the approved website profile and emergency-contact fields with explicit consent metadata.
+- [ ] Directory owner, export reviewer, backup owner, and downloaded-file retention are recorded.
+- [ ] Executive export and manual copy/paste reconciliation are accepted using approved operational data.
+- [ ] Focused pgTAP coverage runs successfully after the local Docker-backed Supabase database is available.
+- [ ] UCOA approves the final waiver wording, signed-document review workflow, and retention period.
 
 ## Current blockers and decisions
 
-- No sanitized Google Sheet sample or source row count has been supplied for rehearsal.
-- The data owner, backup owner, export authority, and retention/deletion period are not recorded.
-- UCID and emergency-contact purpose, access, consent, and retention remain unapproved.
+- The Google Drive directory owner, export reviewer, backup owner, and downloaded-file retention period are not recorded.
+- Student-ID and emergency-contact purpose, access, consent, and retention require executive confirmation.
 - The membership-year convention and payment-verification rule require executive confirmation.
-- Phase 5 waiver approval and final responsive acceptance remain prerequisites for a real member pilot.
-- Canonical external links and the Meetup parallel-period owner still require executive confirmation.
+- Phase 5 waiver approval and final responsive acceptance remain prerequisites for production waiver use.
+- The focused Supabase suite cannot run until Docker Desktop's Linux engine and the local PostgreSQL service are available.
 
 ## Exit criteria
 
-Phase 6 can close when the approved dry-run report reconciles, duplicate and exception queues have dispositions, the sanitized pilot passes, upcoming-event data is verified, rollback/correction steps are documented, parallel-calendar results are accepted, and the executive records the cutover decision and unresolved-risk owners.
+This operating-model work can close when the directory owner accepts the manual reconciliation procedure, executive export audit and authorization tests pass, downloaded-file retention is documented, the focused database suite runs successfully, and UCOA approves the signed-waiver document workflow.
 
 ## Related documents
 

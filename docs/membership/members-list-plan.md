@@ -1,20 +1,22 @@
 # UCOA Membership Data and Migration Plan
 
-**Status:** Phase 6 rehearsal planning (started August 31, 2026)
+**Status:** Operational directory reconciliation (updated September 21, 2026)
 
-**Last reviewed:** August 29, 2026
+**Last reviewed:** September 21, 2026
 
 ## Decision
 
-The existing Google Sheet will be used as a controlled, one-time migration source. It will not remain the long-term source of truth and it must not be committed to this repository.
+The Google Drive member master spreadsheet remains the authoritative directory. It must not be committed to this repository, copied into application fixtures, or replaced by a Supabase import.
 
-After the migration and verification period, Supabase will be authoritative for accounts, profiles, membership years, access status, approvals, and safe payment verification metadata.
+Supabase stores website accounts, profiles, website membership years, access status, approvals, safe payment verification metadata, events, and waiver records. It is the operational system for the website, but it is not the canonical member directory.
 
-The Phase 6 migration and pilot worklist is [docs/planning/phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md). This status records planning only; no real export or production import is authorized.
+Executives use the on-demand Excel export to review website-account and operational fields, then manually copy approved changes into the Google Drive master. There is no Google Drive import, background synchronization, account-claim batch, or membership cutover workflow.
+
+The retired Phase 6 migration notes are retained at [docs/planning/phase-6-migration-pilot.md](../planning/phase-6-migration-pilot.md) only to record the superseded decision and the current export/reconciliation boundary.
 
 ## Why this boundary matters
 
-The legacy sheet may contain personal information with unclear ownership, duplicate rows, outdated status, or fields that are not needed by the new application. Treating it as a live database would make authorization, auditability, and deletion difficult. A reviewed import creates a clear boundary and a repeatable report.
+The member master contains personal information that must stay under the executive-approved Google Drive process. Treating Supabase as a second canonical directory would create conflicting edits, synchronization risk, and unclear retention. Keeping Supabase operational and exporting only on demand gives the executive a deliberate reconciliation point without an automatic overwrite path.
 
 ## Current source and related forms
 
@@ -29,7 +31,7 @@ The current public membership form is a Jotform linked from Meetup. As observed 
 - Membership validity from September 1 through August 31.
 - Meetup as the event schedule during the transition.
 
-These fields are a source observation, not automatic approval for storage. UCID and emergency contact information require a purpose, access policy, retention period, and executive approval before they are imported or collected in the new app. See [docs/legacy/external-services.md](../legacy/external-services.md) for the source inventory.
+These fields are a source observation, not automatic approval for storage. Student identifiers and emergency-contact information require a purpose, access policy, retention period, and executive approval. See [docs/legacy/external-services.md](../legacy/external-services.md) for the source inventory.
 
 ## Membership lifecycle
 
@@ -49,94 +51,44 @@ Every active row must have a membership-year start and end date. The application
 
 ## Data minimization
 
-Import only fields required for identity matching, membership administration, event safety, and approved communications. The initial target is:
+Collect and retain only fields required for website identity, membership administration, event safety, and approved communications. The website operational record may include:
 
-- Auth-linked user ID, created only when an account is claimed.
-- Normalized email, after executive verification of the person mapping.
-- First name and last-name initial or approved display name.
-- Profile photo path, collected or uploaded through the new app if required by UCOA.
-- Affiliation category and safe eligibility notes.
-- Membership-year dates and lifecycle status.
-- Executive approval metadata.
-- Safe payment verification metadata, never banking credentials.
-- Legacy source reference and import batch ID.
+- Auth-linked user ID and account creation timestamp.
+- Email, first name, last name, phone, student ID, and affiliation supplied through the website.
+- Membership-year dates, lifecycle status, executive approval metadata, and safe payment-verification metadata.
+- Executive directory flags and notes required for website operations.
+- Emergency-contact fields only when the member has provided the approved consent and UCOA has confirmed the purpose and retention.
 
-Do not import passwords, bank details, card details, government identification, unnecessary free-text notes, or private information that has no approved purpose. Emergency contacts and UCIDs remain pending decisions; do not import them by default.
+Do not store passwords, bank details, card details, government identification, or unnecessary free-text notes. Do not copy the Google Drive spreadsheet into Supabase as a bulk import.
 
-## Proposed migration mapping
+## Export and reconciliation workflow
 
-The exact source columns must be confirmed during inventory. This mapping is a review template, not permission to import every column.
+1. A member creates or updates their website account through the approved website workflow.
+2. The account remains pending until an executive verifies the website record and grants the appropriate website membership status.
+3. An executive selects optional status, role, search, and signed-waiver filters and confirms the operational purpose of the export.
+4. Supabase generates an Excel workbook in memory with the approved directory headers and website-account fields. The workbook is downloaded immediately and is not retained by the website.
+5. The executive manually reviews the workbook and copies approved values into the Google Drive master using human judgment. Matching by email, student ID, and name is a review aid, not an automatic merge.
+6. Export requests create audit records containing filter context and row counts, not the member payload.
+7. Corrections to the member master are made in Google Drive; website access corrections are made through executive-authorized Supabase workflows.
 
-| Legacy source value | Destination | Rule |
-| --- | --- | --- |
-| Email | Import staging, then Auth/profile link | Normalize case and whitespace; report missing or duplicate values. Do not create a user silently. |
-| First name | `profiles.first_name` | Preserve the user-provided value after validation. |
-| Last name or initial | `profiles.last_name_initial` or approved display field | Store the minimum public identity required by UCOA. |
-| Profile photo reference | Private Storage path | Re-collect or migrate only with permission; do not publish legacy URLs blindly. |
-| UCID | Restricted field only if approved | Confirm Student Union purpose, access, and retention before import. |
-| Affiliation/school | `profiles.affiliation_category` | Normalize to an approved enum; retain uncertain values for review. |
-| Membership date/year | `memberships.starts_on`, `ends_on` | Validate date range and school-year interpretation. |
-| Active/paid indicator | `memberships.status` and verification metadata | Never infer `active` from a vague truthy value without executive review. |
-| Payment note | Safe verification metadata | Strip banking details and free-text secrets; record method/status only. |
-| Emergency contact | Restricted safety field only if approved | Do not import by default; define retention and access first. |
-| Legacy row ID | `memberships.legacy_reference` | Preserve for reconciliation without exposing it to members. |
-
-## Import workflow
-
-1. Executive names the data owner and confirms authority to use the export.
-2. Data owner records the export date, source columns, row count, and intended purpose.
-3. A sanitized sample is used to develop and test normalization without exposing real member data in Git or chat.
-4. The executive-only import tool accepts a reviewed CSV and creates an import batch.
-5. Validation reports missing email, duplicate email, duplicate person matches, invalid dates, unsupported status, suspicious values, and fields excluded by policy.
-6. The preview shows inserts, updates, unchanged rows, and rejected rows before any write.
-7. Executive approves the batch or cancels it.
-8. The import writes only approved fields and creates an audit record with counts, not raw personal data.
-9. Imported records are `needs_verification` unless the executive confirms identity, eligibility, membership year, and status.
-10. Verified members receive account-claim or password-reset email. No passwords are imported.
-11. The data owner reconciles source and destination counts and stores the report in the approved operational location, not in Git.
-
-The import path must be server-only, idempotent for a batch, protected by executive authorization, and safe to retry. It must not accept arbitrary client-side bulk writes or expose a service key.
-
-## Duplicate and identity rules
-
-- Normalize email for comparison but preserve the user-facing form only after verification.
-- Treat duplicate emails as a review queue, not an automatic merge.
-- Do not merge people based only on matching names.
-- Require executive confirmation for a legacy row-to-account mapping.
-- Keep a legacy reference and import batch ID for every imported membership.
-- Never overwrite a verified current profile with an unverified legacy value.
-- Record rejected/ambiguous rows and the reason without placing raw source data in logs.
-
-## Cutover
-
-1. Rehearse on a sanitized export.
-2. Import and verify a small pilot cohort.
-3. Send account-claim emails only to verified mappings.
-4. Run the new portal and Meetup in parallel for one agreed operating period.
-5. Compare active members, upcoming events, RSVP counts, and organizer access.
-6. Announce Supabase as the new source of truth.
-7. Retain the spreadsheet as a restricted archive only for the approved retention period.
-8. Record deletion or archival of unnecessary copies.
-
-Meetup is not a live membership synchronization target. Historical records remain optional and are not required for the first cutover.
+The export route is executive-only, claims-validated, filtered server-side, and protected by the database RPC. It must never accept client-side bulk writes, expose a service key, or become an import endpoint.
 
 ## Acceptance checks
 
-- Source row count equals inserted, updated, rejected, or explicitly deferred rows.
-- Duplicate and missing-email reports have an executive disposition.
-- No passwords, bank credentials, card data, or unapproved sensitive fields are imported.
-- All imported accounts start with the intended status.
-- A pending or expired imported member cannot see member-only event data or RSVP.
-- A verified active member can claim an account and use the portal.
-- Every import batch is auditable without exposing raw personal data.
-- A rollback or correction procedure exists before production import.
+- Google Drive ownership, export ownership, and the manual copy/paste procedure are recorded.
+- No Google Drive spreadsheet or real member export appears in Git, chat, logs, or local fixtures.
+- No passwords, bank credentials, card data, or unapproved sensitive fields enter the website.
+- New website accounts begin pending and do not receive member-only access.
+- Active membership and role checks are enforced for website operations; expired, suspended, and banned accounts lose active-member access.
+- Executive export filters, row counts, and audit records are tested without exposing raw member payloads.
+- Corrections have a named owner in both the Google Drive master process and the website access process.
 
 ## Open decisions
 
-- Name the data owner and backup owner.
-- Confirm the Google Sheet columns and current row count.
-- Approve UCID purpose, access, and retention.
-- Approve emergency contact purpose, access, and retention.
+- Name the Google Drive directory owner, export reviewer, and backup owner.
+- Confirm the exact Google Drive headers and the manual reconciliation procedure.
+- Approve student-ID purpose, access, and retention.
+- Approve emergency-contact purpose, access, consent, and retention.
 - Confirm whether a member photo is collected in the new app or through the external form.
-- Confirm whether membership can be active before payment verification or only after it.
-- Define the retention/deletion date for the source export and rejected rows.
+- Confirm whether website membership can be active before payment verification or only after it.
+- Define retention and deletion rules for downloaded Excel workbooks and signed-waiver ZIP archives.

@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, ShieldCheck } from "lucide-react";
+import { CalendarDays, CheckCircle2, FileSignature, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -25,6 +25,7 @@ type DashboardData = {
   email: string | null;
   profile: ProfileRecord | null;
   membership: MembershipRecord | null;
+  isExecutive: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -56,6 +57,7 @@ async function loadDashboard(): Promise<DashboardData> {
       email: null,
       profile: null,
       membership: null,
+      isExecutive: false,
     };
   }
 
@@ -69,11 +71,12 @@ async function loadDashboard(): Promise<DashboardData> {
       email: null,
       profile: null,
       membership: null,
+      isExecutive: false,
     };
   }
 
   const userId = claims.claims.sub;
-  const [{ data: profile }, { data: membership }] = await Promise.all([
+  const [{ data: profile }, { data: membership }, { data: executiveRole }] = await Promise.all([
     supabase
       .from("profiles")
       .select("first_name, last_name_initial, display_name")
@@ -86,6 +89,12 @@ async function loadDashboard(): Promise<DashboardData> {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "executive")
+      .maybeSingle(),
   ]);
 
   return {
@@ -94,6 +103,7 @@ async function loadDashboard(): Promise<DashboardData> {
     email: typeof claims.claims.email === "string" ? claims.claims.email : null,
     profile: (profile ?? null) as ProfileRecord | null,
     membership: (membership ?? null) as MembershipRecord | null,
+    isExecutive: Boolean(executiveRole),
   };
 }
 
@@ -193,6 +203,43 @@ export default async function ProtectedPage() {
             Keep this address current so UCOA can reach you about your account.
           </p>
         </article>
+
+        <article className="border border-[#c9d6d0] bg-[#fffdf8] p-6 shadow-[4px_4px_0_#d9e3dc]">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#557268]">
+            Waivers
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <FileSignature aria-hidden="true" className="size-6 text-[#b35f35]" />
+            <p className="text-2xl font-semibold text-[#19352d]">Documents</p>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-[#71847b]">
+            Download approved forms and submit signed PDFs from the portal.
+          </p>
+          <Link
+            className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#19352d] underline decoration-[#b35f35] decoration-2 underline-offset-4"
+            href="/protected/waivers"
+          >
+            Open waiver centre
+          </Link>
+        </article>
+
+        {dashboard.isExecutive ? (
+          <article className="border border-[#c9d6d0] bg-[#fffdf8] p-6 shadow-[4px_4px_0_#d9e3dc]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#557268]">
+              Executive
+            </p>
+            <p className="mt-4 text-2xl font-semibold text-[#19352d]">Operations</p>
+            <p className="mt-3 text-sm leading-6 text-[#71847b]">
+              Generate filtered member workbooks and bulk signed-waiver downloads.
+            </p>
+            <Link
+              className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-[#19352d] underline decoration-[#b35f35] decoration-2 underline-offset-4"
+              href="/protected/executive"
+            >
+              Open executive tools
+            </Link>
+          </article>
+        ) : null}
       </div>
 
       <div className="border-t border-[#c9d6d0] pt-8">
