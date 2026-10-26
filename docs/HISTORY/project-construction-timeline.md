@@ -147,6 +147,14 @@ This document records major planning, implementation, migration, testing, and la
 - Added structural PDF parsing, restricted owner-only Storage reads, server-only executive binary downloads, bounded export listing, service-role-bound export audits, race-safe review transitions, and an explicit audited orphan cleanup workflow for replaced or deleted-account PDFs. `npm run lint`, `npm run typecheck`, and `npm run build` pass; database execution remains blocked until Docker Desktop's Linux engine is available.
 - **Open items:** name the directory/export owners, approve the downloaded-file and signed-document retention cutoffs, approve the final waiver wording and review workflow, and run the newest database suite locally.
 
+### 2026-10-25 - First Vercel production deployment
+
+- **Status:** complete
+- **Owner:** UCOA project owner
+- **Change:** Connected the `main` branch of `Jharvey1999/UCOA-website` to the Vercel `ucoa-website` project, configured the Supabase production environment variables, attached `ucoa.ca` to Production, and set `www.ucoa.ca` to a permanent redirect to the apex domain. Secret values are not recorded here.
+- **Validation:** Vercel reported the production deployment as ready, and the generated `vercel.app` homepage loaded with the expected public navigation. Vercel shows both custom domains as pending nameserver propagation and estimates they will be assigned automatically after propagation.
+- **Open items:** Verify both custom hostnames and Auth email flows after propagation, complete deployed privacy/security acceptance, and confirm the previously exposed Supabase Secret key has been revoked.
+
 ## Planned milestones
 
 ## Retired Phase 6 migration planning - August 31, 2026
@@ -218,9 +226,9 @@ This document records major planning, implementation, migration, testing, and la
 
 ### 8. Production launch and operations
 
-**Status:** not started
+**Status:** in progress (first Vercel production deployment, custom-domain mapping, and Supabase Auth URLs complete October 25, 2026; nameserver propagation and deployed acceptance remain)
 
-- Configure Vercel and Supabase environments, Auth email delivery, redirects, backups, monitoring, and domain.
+- Verify Supabase Auth email delivery on the custom domain, configure backups and monitoring, and complete deployed acceptance.
 - Complete deployed privacy/security checks.
 - Launch the website as the operational event portal while retaining Google Drive as the member master.
 - Retain Meetup only as the approved external transition/reference path.
